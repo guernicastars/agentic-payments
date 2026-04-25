@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background-color: #0b0d12;
+  color: #e8edf2;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Recharts dark theme tweaks */
+.recharts-cartesian-axis-tick text { fill: #8792a0 !important; }
+.recharts-cartesian-grid line { stroke: #202733 !important; }
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: #11151c !important;
+  border: 1px solid #202733 !important;
+  border-radius: 6px !important;
+  color: #f5f7fa !important;
+}
