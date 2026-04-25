@@ -32,9 +32,14 @@ M_DEX_SWAP = "0x38ed1739"
 M_BRIDGE = "0xd0e30db0"
 M_MISC = ["0x23b872dd", "0x70a08231", "0xb88d4fde"]
 
-# Block timing on Base ~2s.
+# Block timing on Base ~2s. Base launched Aug 2023 → ~42M blocks by Apr 2026.
 BASE_BLOCK_SECONDS = 2.0
-BASE_GENESIS_BLOCK = 30_000_000  # arbitrary anchor for synthetic data
+BASE_GENESIS_BLOCK = 42_000_000  # apr 2026 anchor
+
+# x402 facilitator labels for synthetic payment-bot traffic. Real addresses
+# are decoded in src/ingest/base.py; here we only need the label values to
+# match the canonical schema.
+SYNTH_FACILITATORS = ["cdp", "payai", "thirdweb"]
 
 # Pseudo-basefee in gwei. Mild diurnal seasonality so the gas-tightness signal
 # is non-trivial.
@@ -107,6 +112,8 @@ def _emit(
     gas_price_gwei: float,
     method_id: str,
     success: bool = True,
+    is_x402: bool = False,
+    facilitator: str | None = None,
 ) -> dict:
     seq = world.take_seq()
     return {
@@ -121,6 +128,8 @@ def _emit(
         "gas_price_gwei": float(gas_price_gwei),
         "method_id": method_id,
         "success": bool(success),
+        "is_x402": bool(is_x402),
+        "facilitator": facilitator,
     }
 
 
@@ -178,6 +187,7 @@ def gen_agent_payment_bot(world: World, addr: str) -> list[dict]:
     inter_burst = rng.exponential(scale=4 * 3600.0)
     t = inter_burst
     fixed_payment_amount = float(rng.uniform(20, 200))
+    facilitator = str(rng.choice(SYNTH_FACILITATORS))
     while t < world.duration_s:
         # one burst
         n_in_burst = int(rng.poisson(5)) + 1
@@ -190,7 +200,7 @@ def gen_agent_payment_bot(world: World, addr: str) -> list[dict]:
             gp = b * 1.2 + rng.uniform(-0.001, 0.002)  # +20% for speed
             gas_used = int(rng.normal(55000, 1500))
             value = fixed_payment_amount * (1 + rng.normal(0, 0.02))
-            rows.append(_emit(world, addr, recipient, float(tt), float(value), gas_used, gp, M_ERC20_TRANSFER))
+            rows.append(_emit(world, addr, recipient, float(tt), float(value), gas_used, gp, M_ERC20_TRANSFER, is_x402=True, facilitator=facilitator))
         t += rng.exponential(scale=4 * 3600.0)
     return rows
 
@@ -200,8 +210,9 @@ def gen_agent_compromised(world: World, addr: str, drift_t: float = 8 * 3600.0) 
     rng = world.rng
     rows = []
     fixed_payment_amount = float(rng.uniform(20, 200))
+    facilitator = str(rng.choice(SYNTH_FACILITATORS))
 
-    # Phase 1
+    # Phase 1 — well-behaved x402 payment bot
     t = rng.exponential(scale=4 * 3600.0)
     while t < min(drift_t, world.duration_s):
         recipient = rng.choice(world.payment_recipient_pool)
@@ -214,7 +225,7 @@ def gen_agent_compromised(world: World, addr: str, drift_t: float = 8 * 3600.0) 
             gp = b * 1.2 + rng.uniform(-0.001, 0.002)
             gas_used = int(rng.normal(55000, 1500))
             value = fixed_payment_amount * (1 + rng.normal(0, 0.02))
-            rows.append(_emit(world, addr, recipient, float(tt), float(value), gas_used, gp, M_ERC20_TRANSFER))
+            rows.append(_emit(world, addr, recipient, float(tt), float(value), gas_used, gp, M_ERC20_TRANSFER, is_x402=True, facilitator=facilitator))
         t += rng.exponential(scale=4 * 3600.0)
 
     # Phase 2 — drifted: new counterparty pool (malicious), 5x burst rate, 3x gas, large transfers, approve calls

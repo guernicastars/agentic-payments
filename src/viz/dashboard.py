@@ -32,6 +32,7 @@ REAL_PATHS = {
     "embedding": DATA / "processed" / "real_x402_embedding.parquet",
 }
 
+
 TIER_ORDER = ["critical", "high", "medium", "low", "unknown"]
 TIER_COLORS = {
     "critical": "#e5484d",
@@ -594,8 +595,8 @@ def render_alert_queue(data: dict[str, pd.DataFrame]) -> str | None:
 
 
 def render_tabs(data: dict[str, pd.DataFrame], dataset: str) -> None:
-    triage, behaviour, coordination, evidence = st.tabs(
-        ["Triage", "Behaviour Map", "Coordination", "Model Evidence"]
+    triage, behaviour, coordination, evidence, trend = st.tabs(
+        ["Triage", "Behaviour Map", "Coordination", "Model Evidence", "12-month Trend"]
     )
     with triage:
         left, right = st.columns([1.45, 1.0], gap="large")
@@ -692,6 +693,38 @@ def render_tabs(data: dict[str, pd.DataFrame], dataset: str) -> None:
             yaxis=dict(title=None, tickfont=dict(color="#b7c0ca")),
         )
         st.plotly_chart(fig, width="stretch")
+
+    with trend:
+        from src.viz.trend import load_or_locked, trend_figure_plotly
+
+        agg, is_live = load_or_locked()
+        st.subheader("Agent payment behaviour: Jun 2025 → Apr 2026")
+        if is_live:
+            st.caption("Live aggregation from `data/raw/x402_snapshot_*.parquet` (cofounder's Dune pull).")
+        else:
+            st.caption(
+                "Locked numbers from memo 16 (`memos/16_snapshot_findings.md`). "
+                "Falls back to live snapshots once `data/raw/x402_snapshot_*.parquet` files exist."
+            )
+        st.plotly_chart(trend_figure_plotly(agg), width="stretch")
+        st.dataframe(
+            agg[["date_label", "tx_count", "unique_payers", "unique_merchants", "median_tx_usd", "mean_tx_usd"]],
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "date_label": "Snapshot",
+                "tx_count": "Sample (tx)",
+                "unique_payers": "Payers",
+                "unique_merchants": "Merchants",
+                "median_tx_usd": st.column_config.NumberColumn("Median tx", format="$%.3f"),
+                "mean_tx_usd": st.column_config.NumberColumn("Mean tx", format="$%.2f"),
+            },
+        )
+        st.markdown(
+            '<div class="small-muted">Oct 2025 excluded — bipartite-degenerate sample '
+            '(99.98% of volume routed through a single merchant). See memo 17.</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def main() -> None:
