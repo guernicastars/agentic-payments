@@ -4,6 +4,7 @@ Append-only build log. One memo per topic; keep entries dated. New entries on to
 
 ## Strategy
 
+- [00_pitch_script.md](00_pitch_script.md) — 2-minute pitch beat-by-beat with stopwatch timing, Q&A answers, post-pitch follow-up.
 - [01_pitch_framing.md](01_pitch_framing.md) — Two-minute pitch, the four-beat structure, Blomfield rubric.
 - [02_moat_thesis.md](02_moat_thesis.md) — Why behavioural risk intelligence is the defensible wedge.
 - [03_open_gaps.md](03_open_gaps.md) — Compact list of unsolved problems in agentic payments, marked by moat profile.

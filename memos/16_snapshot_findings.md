@@ -1,4 +1,4 @@
-# 13 — Snapshot findings (pitch numbers locked)
+# 16 — Snapshot findings (pitch numbers locked)
 
 **Date:** 2026-04-25
 

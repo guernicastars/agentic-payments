@@ -1,4 +1,4 @@
-# 14 — Real data quality notes
+# 17 — Real data quality notes
 
 **Date:** 2026-04-25
 
@@ -33,6 +33,20 @@ This actually strengthens the narrative — it shows the system distinguishes be
 **Baseline contamination.** Baseline includes any non-x402 ETH transfer on Base. This will sweep in MEV bots, DEX traders, bridge users. Acceptable for hackathon — produces a "humans + non-x402 automation" cluster, x402 agents separate distinctly. **Production fix:** filter baseline against known MEV bot lists (flashbots/mev-inspect dataset).
 
 **Jun 2025 expanded to month-long window.** 1h-at-noon returned ~0 rows; expanded to full month to get 151 tx. Acceptable because Jun 2025 represents the "early adopters" phase explicitly, where 1h windows aren't statistically meaningful.
+
+## Ingest schema mapping
+
+We have three ingest paths that all feed `compute_features()`. The downstream pipeline only reads `from_addr / to_addr / value_usd / block_time_s / gas_used / gas_price_gwei / method_id / success`, so the divergence below is benign — but worth knowing when joining tables.
+
+| Field | `synthetic.py` | `ingest/base.py` | `ingest/public_x402.py` | Snapshot parquets |
+|---|---|---|---|---|
+| Payer wallet | `from_addr` | `from_addr` (EIP-3009 signer) | `from_addr` (EIP-3009 signer) | `payer` |
+| Recipient | `to_addr` | `to_addr` | `to_addr` | `merchant` |
+| x402 flag | `is_x402` | `is_x402` | `is_x402_eip3009` | (file = snapshot) |
+| Facilitator | `facilitator` (str: "cdp"/"payai"/"thirdweb") | `facilitator` (str via `facilitators.facilitator_label`) | `facilitator_addr` (raw 0x...) | n/a |
+| USD value | `value_usd` | `value_usd` (USDC-aware) | `value_usd` (USDC-aware) | `value_usd` |
+
+`src/viz/trend.py:_summarise()` handles the `payer/merchant` ↔ `from_addr/to_addr` rename automatically.
 
 ## Reproducibility
 

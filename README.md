@@ -11,23 +11,30 @@ Hackathon prep day (Friday). Saturday: 10am–8pm build; 2-min pitch to Tom Blom
 ```
 agentic-payments/
 ├── memos/                # Build memos — see MEMOS.md for index
+├── scripts/              # Dune pulls, snapshot probes, analysis CLIs
 ├── src/
-│   ├── ingest/           # Data ingest: synthetic + Base/x402
+│   ├── ingest/           # synthetic.py, base.py, public_x402.py, facilitators.py
 │   ├── features/         # Behavioural fingerprint features
 │   ├── models/           # Clustering + anomaly detection
-│   └── viz/              # UMAP / dashboard figures
+│   ├── viz/              # dashboard.py, embed.py, trend.py
+│   ├── pipeline.py       # synthetic + --source <parquet> path
+│   └── pipeline_public.py  # cooked-public-data pipeline
 ├── data/
 │   ├── synthetic/        # Synthetic agent traffic (ground-truth labelled)
-│   ├── raw/              # Raw chain dumps
-│   └── processed/        # Feature tables
-├── notebooks/
+│   ├── raw/              # Raw chain dumps + Dune snapshot parquets
+│   ├── samples/          # 50-100-row CSV seeds, committed for smoke tests
+│   └── processed/        # Feature tables, real_x402_*.parquet
+├── results/
+│   ├── figures/          # trend.png, headline.png, real_umap.png (committed)
+│   └── tables/           # snapshot_summary.csv
 └── tests/
 ```
 
 ## Quick start
 
 ```bash
-make demo
+make demo               # synthetic pipeline + Streamlit dashboard
+make public             # public-x402 (Blockscout, no API key) pipeline
 ```
 
 If `make` is not available:
@@ -36,17 +43,24 @@ If `make` is not available:
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -e ".[dash,dev]"
-.venv/bin/python -m src.pipeline
+.venv/bin/python -m src.pipeline                          # synthetic
+.venv/bin/python -m src.pipeline_public --refresh         # public x402 (live fetch)
 .venv/bin/python -m streamlit run src/viz/dashboard.py
 ```
 
-Public x402/Base data:
+The dashboard has a **Dataset** segmented control that switches between
+`Synthetic stress test` and `Public x402 Base`, plus a `12-month Trend` tab
+that aggregates the four Dune snapshot parquets at
+`data/raw/x402_snapshot_*.parquet` (falls back to locked numbers from
+memo 16 if those files aren't present yet).
+
+Pipeline on a pre-ingested real-data parquet:
 
 ```bash
-make public
+.venv/bin/python -m src.pipeline --source data/raw/base_ingested.parquet
 ```
 
-Manual pipeline:
+Manual synthetic pipeline:
 
 ```bash
 .venv/bin/python -m src.ingest.synthetic --n_human 100 --n_agent_arb 40 --n_agent_payment 40 --n_agent_compromised 10 --hours 24 --out data/synthetic/run1.parquet
@@ -58,7 +72,10 @@ Manual pipeline:
 
 ## Demo dashboard
 
-The Streamlit app is the hackathon demo surface: UMAP wallet clusters, composite risk tiers, top wallet explanations, and a coordination graph. It auto-builds the synthetic demo artifacts if `data/processed/embedding.parquet` is missing, so a fresh clone can run the dashboard after installing dependencies.
+The Streamlit app is the hackathon demo surface: UMAP wallet clusters,
+composite risk tiers, top wallet explanations, a coordination graph, and a
+12-month behaviour trend. It auto-builds synthetic demo artifacts if
+`data/processed/embedding.parquet` is missing.
 
 ## Reused from adjacent repos
 
@@ -68,3 +85,5 @@ The Streamlit app is the hackathon demo surface: UMAP wallet clusters, composite
 | `polymarket/pipeline/jobs/insider_detector.py` | Z-score anomaly + coordination + composite suspicion 0-100 | Architecture lifts directly to agent traffic |
 | `polymarket/network/embedding/` | Autoencoder + linear probing + Jacobian/correlation attribution | Interpretability layer for the "why was this flagged" answer |
 | `dissertation/notes/cascade-network-analysis.md` | SIR-style infection model + branching-process bounds | Narrative spine for compromised-agent contagion |
+| `x402.watch` + Base Blockscout API | Live x402 facilitator → EIP-3009 settlement decoder | Real demo data without Dune/Etherscan API keys |
+| Dune `base.transactions` (4 historical snapshots) | Jun 2025 / Oct 2025 / Jan 2026 / Apr 2026 trend | 12-month behaviour shift: 28,000× volume, 100× median tx compression |

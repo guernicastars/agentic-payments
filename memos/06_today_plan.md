@@ -1,5 +1,7 @@
 # 06 — Today's plan (Friday 2026-04-25)
 
+> **Status: completed Friday evening.** All Friday blocks shipped (synthetic pipeline, features, clusters, scores, UMAP, dashboard). For Saturday actuals see memos 12 (live x402 track), 15 (Dune snapshots track), 16 (locked numbers), and 17 (data quality).
+
 ## Goal
 
 End the day with a working **synthetic-data pipeline** end-to-end (generator → features → clusters → composite scores → UMAP figure). Saturday is then "swap synthetic for real data + train interpretability probe + Streamlit + rehearse."
