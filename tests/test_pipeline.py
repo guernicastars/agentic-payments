@@ -115,6 +115,37 @@ def test_ingest_uses_signer_not_facilitator() -> None:
     assert canonical.loc[0, "value_usd"] == 2.5  # 2_500_000 / 10**6
 
 
+def test_trend_locked_numbers_render() -> None:
+    """The trend tab must render even before snapshots parquet exists."""
+    from src.viz.trend import LOCKED_NUMBERS, load_or_locked, trend_figure_plotly
+
+    agg, is_live = load_or_locked("data/raw/__nonexistent__.parquet")
+    assert is_live is False
+    assert len(agg) == 3
+    assert {"date_label", "median_tx_usd", "unique_payers"}.issubset(agg.columns)
+    fig = trend_figure_plotly(agg)
+    assert len(fig.data) == 4  # 4 panels
+
+
+def test_trend_aggregates_live_snapshots(tmp_path: Path) -> None:
+    """When a snapshots parquet with the `snapshot` column exists, aggregate it."""
+    from src.viz.trend import aggregate_snapshots, load_or_locked
+
+    df = pd.DataFrame([
+        {"snapshot": "early_adopters", "from_addr": f"0x{i:040x}", "to_addr": "0xa" * 40, "value_usd": 0.1, "block_time_s": float(i)}
+        for i in range(10)
+    ] + [
+        {"snapshot": "current", "from_addr": f"0x{i:040x}", "to_addr": "0xb" * 40, "value_usd": 0.001, "block_time_s": float(i)}
+        for i in range(20)
+    ])
+    snap_path = tmp_path / "base_snapshots.parquet"
+    df.to_parquet(snap_path, index=False)
+    agg, is_live = load_or_locked(snap_path)
+    assert is_live is True
+    assert len(agg) == 2
+    assert agg.loc[agg["snapshot"] == "current", "tx_count"].iloc[0] == 20
+
+
 def test_ingest_loads_jsonl(tmp_path: Path) -> None:
     """End-to-end: write a JSONL file, ingest it via the CLI entry."""
     from src.ingest.base import ingest

@@ -68,11 +68,18 @@ def build_embedding(
             labels = labels.set_index("addr")
         out = out.join(labels[["policy", "role", "ring_id"]], how="left")
 
-    out["policy"] = out["policy"].fillna("unlabelled")
-    out["role"] = out["role"].fillna("unknown")
-    out["tier"] = out["tier"].fillna("unknown")
-    out["composite_score"] = out["composite_score"].fillna(0.0)
-    out["explanation"] = out["explanation"].fillna("")
+    defaults: dict[str, str | float] = {
+        "policy": "unlabelled",
+        "role": "unknown",
+        "tier": "unknown",
+        "composite_score": 0.0,
+        "explanation": "",
+    }
+    for column, default in defaults.items():
+        if column not in out.columns:
+            out[column] = default
+        else:
+            out[column] = out[column].fillna(default)
     return out.reset_index()
 
 

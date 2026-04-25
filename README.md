@@ -27,20 +27,33 @@ agentic-payments/
 ## Quick start
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dash,dev]"
-python -m src.pipeline
-streamlit run src/viz/dashboard.py
+make demo
+```
+
+If `make` is not available:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e ".[dash,dev]"
+.venv/bin/python -m src.pipeline
+.venv/bin/python -m streamlit run src/viz/dashboard.py
+```
+
+Public x402/Base data:
+
+```bash
+make public
 ```
 
 Manual pipeline:
 
 ```bash
-python -m src.ingest.synthetic --n_human 100 --n_agent_arb 40 --n_agent_payment 40 --n_agent_compromised 10 --hours 24 --out data/synthetic/run1.parquet
-python -m src.features.fingerprint data/synthetic/run1.parquet -o data/processed/features.parquet
-python -m src.models.cluster data/synthetic/run1.parquet
-python -m src.models.score data/processed/features.parquet -o data/processed/scores.parquet
-python -m src.viz.embed data/processed/features.parquet --labels data/synthetic/run1_labels.parquet --scores data/processed/scores.parquet
+.venv/bin/python -m src.ingest.synthetic --n_human 100 --n_agent_arb 40 --n_agent_payment 40 --n_agent_compromised 10 --hours 24 --out data/synthetic/run1.parquet
+.venv/bin/python -m src.features.fingerprint data/synthetic/run1.parquet -o data/processed/features.parquet
+.venv/bin/python -m src.models.cluster data/synthetic/run1.parquet
+.venv/bin/python -m src.models.score data/processed/features.parquet -o data/processed/scores.parquet
+.venv/bin/python -m src.viz.embed data/processed/features.parquet --labels data/synthetic/run1_labels.parquet --scores data/processed/scores.parquet
 ```
 
 ## Demo dashboard

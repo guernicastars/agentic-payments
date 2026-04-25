@@ -1,0 +1,25 @@
+source,name,slug,facilitator_url,host,supports_base_hint,known_slug_count_on_page
+x402.watch,Virtuals Protocol,virtuals,https://acpx.virtuals.io,acpx.virtuals.io,True,26
+x402.watch,Meridian,meridian,https://api.mrdn.finance/v1,api.mrdn.finance,True,26
+x402.watch,NetPay,netpay,https://api.netpay.id,api.netpay.id,True,26
+x402.watch,Thirdweb,thirdweb,https://api.thirdweb.com/v1/payments/x402,api.thirdweb.com,True,26
+x402.watch,Coinbase,coinbase,https://facilitator.cdp.coinbase.com,facilitator.cdp.coinbase.com,True,26
+x402.watch,CodeNut,codenut,https://facilitator.codenut.ai,facilitator.codenut.ai,True,26
+x402.watch,Corbits,corbits,https://facilitator.corbits.dev,facilitator.corbits.dev,True,26
+x402.watch,Daydreams,daydreams,https://facilitator.daydreams.systems,facilitator.daydreams.systems,True,26
+x402.watch,Dexter,dexter,https://facilitator.dexter.cash,facilitator.dexter.cash,True,26
+x402.watch,Questflow,questflow,https://facilitator.heurist.xyz,facilitator.heurist.xyz,True,26
+x402.watch,Mogami,mogami,https://facilitator.mogami.tech,facilitator.mogami.tech,True,26
+x402.watch,PayAI,payai,https://facilitator.payai.network,facilitator.payai.network,True,26
+x402.watch,Ultravioleta DAO,ultravioletadao,https://facilitator.ultravioletadao.xyz,facilitator.ultravioletadao.xyz,True,26
+x402.watch,X402rs,x402rs,https://facilitator.x402.rs,facilitator.x402.rs,True,26
+x402.watch,Autoincentive,autoincentive,https://facilitator.x402endpoints.online,facilitator.x402endpoints.online,True,26
+x402.watch,x402x,x402x,https://facilitator.x402x.dev,facilitator.x402x.dev,True,26
+x402.watch,Kobaru,kobaru,https://gateway.kobaru.io,gateway.kobaru.io,True,26
+x402.watch,AurraCloud,aurracloud,https://kamiyo.ai/api/v1/x402,kamiyo.ai,True,26
+x402.watch,OpenX402,openx402,https://open.x402.host,open.x402.host,True,26
+x402.watch,OpenFacilitator,openfacilitator,https://pay.openfacilitator.io,pay.openfacilitator.io,True,26
+x402.watch,x402jobs,x402jobs,https://pay.x402.jobs,pay.x402.jobs,True,26
+x402.watch,xEcho,xecho,https://www.xechoai.xyz,www.xechoai.xyz,True,26
+x402.watch,402104,402104,https://x402.load.network,x402.load.network,True,26
+x402.watch,Polygon Facilitator,polygon,https://x402.polygon.technology,x402.polygon.technology,True,26

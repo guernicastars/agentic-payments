@@ -17,6 +17,12 @@ data/synthetic/*
 !data/processed/.gitkeep
 !data/synthetic/.gitkeep
 
+# Cofounder's public x402 artefacts (committed)
+!data/raw/x402_*.parquet
+!data/processed/real_x402*.parquet
+!data/raw/sample_*.csv
+!data/processed/sample_*.csv
+
 # Reproducibility passport — execution_ids are cheap, regenerable from Dune
 !data/raw/dune_results/
 data/raw/dune_results/*
@@ -31,6 +37,8 @@ data/raw/dune_results/*
 *.csv
 !data/samples/*.csv
 !data/**/sample_*.csv
+!data/raw/x402_*.parquet
+!data/processed/real_x402*.parquet
 
 # Results: ignore everything except curated pitch artifacts
 results/figures/*

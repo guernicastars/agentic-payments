@@ -13,9 +13,10 @@ Append-only build log. One memo per topic; keep entries dated. New entries on to
 - [04_polymarket_assets.md](04_polymarket_assets.md) — Reusable code from polymarket repo, file-by-file.
 - [05_data_plan.md](05_data_plan.md) — x402 / Base data sourcing plan, fallbacks, schema.
 - [10_alternative_datasets.md](10_alternative_datasets.md) — Backup datasets and weak-label sources for validation.
-- [12_data_integration_plan.md](12_data_integration_plan.md) — Real-data integration architecture and Saturday execution sequence.
-- [13_snapshot_findings.md](13_snapshot_findings.md) — Pitch numbers from Dune snapshots (template, fill post-pull).
-- [14_real_data_quality.md](14_real_data_quality.md) — Real-data caveats and methodology notes.
+- [12_public_data_collection.md](12_public_data_collection.md) — What we could collect without keys (live x402 track via x402.watch + Blockscout).
+- [13_snapshot_findings.md](13_snapshot_findings.md) — Pitch numbers from Dune snapshots (Jun/Jan/Apr trend, locked).
+- [14_real_data_quality.md](14_real_data_quality.md) — Real-data caveats and methodology notes (Oct excluded).
+- [15_data_integration_plan.md](15_data_integration_plan.md) — Dune snapshots integration architecture (parallel to memo 12 live track).
 
 ## Build
 
