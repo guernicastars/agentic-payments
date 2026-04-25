@@ -59,7 +59,9 @@ python3 -m venv .venv
 ```
 
 The dashboard has a **Dataset** segmented control that switches between
-`Synthetic stress test` and `Public x402 Base`. Tabs:
+`Synthetic stress test`, `Dune x402 + baseline` (CTO Dune pull cooked
+through the same pipeline as a real-data bridge), and `Public x402 Base`.
+Tabs:
 
 - **Live Tracker** — replay-based live fraud stream (1 tx/s), uses
   `@st.fragment(run_every="1s")`. Clears warm-up at ~30 wallets and emits
@@ -77,6 +79,12 @@ Pipeline on a pre-ingested real-data parquet:
 .venv/bin/python -m src.pipeline --source data/raw/base_ingested.parquet
 ```
 
+CTO/Dune x402 traffic + Base baseline:
+
+```bash
+make dune
+```
+
 Manual synthetic pipeline:
 
 ```bash
@@ -91,7 +99,9 @@ Manual synthetic pipeline:
 
 The Streamlit app is the hackathon demo surface: UMAP wallet clusters,
 composite risk tiers, top wallet explanations, a coordination graph, and a
-12-month behaviour trend. It auto-builds synthetic demo artifacts if
+12-month behaviour trend. It includes synthetic stress-test data, CTO/Dune
+x402 traffic scored against an ordinary Base baseline, and the public
+x402/Base overlay. It auto-builds synthetic demo artifacts if
 `data/processed/embedding.parquet` is missing.
 
 ## Reused from adjacent repos

@@ -1,4 +1,4 @@
-.PHONY: setup synthetic public demo clean-data
+.PHONY: setup synthetic public dune demo clean-data
 
 PYTHON ?= python3
 VENV := .venv
@@ -14,6 +14,9 @@ synthetic: setup
 
 public: setup
 	$(VPY) -m src.pipeline_public --refresh
+
+dune: setup
+	$(VPY) -m src.pipeline_dune
 
 demo: synthetic
 	$(VPY) -m streamlit run src/viz/dashboard.py

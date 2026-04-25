@@ -12,6 +12,7 @@ import streamlit as st
 
 from src.live.tracker import LiveTracker, demo_replay
 from src.pipeline import run_pipeline
+from src.pipeline_dune import run_dune_pipeline
 
 
 DATA = Path("data")
@@ -34,6 +35,14 @@ REAL_PATHS = {
     "embedding": DATA / "processed" / "real_x402_embedding.parquet",
 }
 
+DUNE_PATHS = {
+    "txs": DATA / "processed" / "dune_x402_events.parquet",
+    "labels": DATA / "processed" / "dune_x402_labels.parquet",
+    "features": DATA / "processed" / "dune_x402_features.parquet",
+    "scores": DATA / "processed" / "dune_x402_scores.parquet",
+    "embedding": DATA / "processed" / "dune_x402_embedding.parquet",
+    "snapshot_summary": DATA / "processed" / "dune_x402_snapshot_summary.parquet",
+}
 
 TIER_ORDER = ["critical", "high", "medium", "low", "unknown"]
 TIER_COLORS = {
@@ -49,6 +58,8 @@ POLICY_COLORS = {
     "agent_payment_bot": "#a78bfa",
     "agent_compromised": "#f97316",
     "collusion_ring": "#e5484d",
+    "dune_x402_payer": "#60a5fa",
+    "base_baseline": "#2dd4bf",
     "unlabelled": "#8892a0",
 }
 FACTOR_LABELS = {
@@ -207,6 +218,16 @@ def load_real() -> dict[str, pd.DataFrame]:
     }
 
 
+@st.cache_data(show_spinner=False)
+def load_dune() -> dict[str, pd.DataFrame]:
+    if not DUNE_PATHS["embedding"].exists() or not DUNE_PATHS["scores"].exists():
+        run_dune_pipeline()
+    return {
+        name: pd.read_parquet(path) if path.exists() else pd.DataFrame()
+        for name, path in DUNE_PATHS.items()
+    }
+
+
 def short_addr(addr: str, n: int = 6) -> str:
     if not isinstance(addr, str) or len(addr) < 12:
         return str(addr)
@@ -225,6 +246,16 @@ def dataset_frame(dataset: str) -> dict[str, pd.DataFrame]:
             labels = labels.set_index("addr")
         data["scored"] = data["scores"].join(labels, how="left") if len(labels) else data["scores"]
         data["dataset_kind"] = pd.DataFrame([{"kind": "synthetic"}])
+        return data
+    if dataset == "Dune x402 + baseline":
+        data = load_dune()
+        labels = data["labels"].copy()
+        if len(labels):
+            labels = labels.set_index("addr")
+        data["scored"] = data["scores"].join(labels[["policy", "role", "ring_id"]], how="left") if len(labels) else data["scores"]
+        data["clusters"] = pd.DataFrame()
+        data["edges"] = pd.DataFrame()
+        data["dataset_kind"] = pd.DataFrame([{"kind": "dune"}])
         return data
     data = load_real()
     scores = data["scores"].copy()
@@ -339,6 +370,19 @@ def readout(data: dict[str, pd.DataFrame], dataset: str) -> None:
             f"{counts['high'] + counts['critical']} wallets are in the immediate queue, "
             f"{counts['medium']} require monitoring, and {human_high} human wallets are false-high. "
             "The demo proves the pipeline can separate deterministic agents, compromised drift, and collusion rings with known ground truth."
+        )
+    elif dataset == "Dune x402 + baseline":
+        is_x402 = int(data["txs"].get("is_x402", pd.Series(dtype=bool)).sum()) if len(data["txs"]) else 0
+        baseline = len(data["txs"]) - is_x402
+        summary = data.get("snapshot_summary", pd.DataFrame())
+        current = summary[summary["snapshot"] == "current"].iloc[0].to_dict() if len(summary) and "snapshot" in summary else {}
+        current_rows = int(current.get("rows", 0) or 0)
+        current_payers = int(current.get("payers", 0) or 0)
+        text = (
+            f"<strong>CTO Dune pull.</strong><br>"
+            f"{is_x402:,} x402 settlement rows cooked against {baseline:,} ordinary Base baseline rows. "
+            f"The Dune snapshot table shows {current_rows:,} current-window rows from {current_payers:,} payers; "
+            f"this gives us the first clean trend + baseline view without relying on synthetic-only evidence."
         )
     else:
         first = txs["block_time"].min() if "block_time" in txs and len(txs) else None
@@ -745,7 +789,7 @@ def render_tabs(data: dict[str, pd.DataFrame], dataset: str) -> None:
         with top:
             st.subheader("Behavioural Fingerprint Space")
             options = ["tier"]
-            if dataset == "Synthetic stress test":
+            if "policy" in data["embedding"].columns and data["embedding"]["policy"].nunique() > 1:
                 options.append("policy")
             color_by = st.segmented_control("Colour", options, default="tier", label_visibility="collapsed")
             st.plotly_chart(embedding_chart(data["embedding"], color_by), width="stretch")
@@ -861,7 +905,7 @@ def main() -> None:
     with top_left:
         dataset = st.segmented_control(
             "Dataset",
-            ["Synthetic stress test", "Public x402 Base"],
+            ["Synthetic stress test", "Dune x402 + baseline", "Public x402 Base"],
             default="Synthetic stress test",
         )
     data = dataset_frame(dataset)

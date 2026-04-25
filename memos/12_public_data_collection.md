@@ -73,19 +73,35 @@ python -m src.pipeline_public
 
 `src.ingest.public_x402` fetches and normalizes public data. `src.pipeline_public` cooks it through the same feature/scoring/embedding stack used for the synthetic demo.
 
+## CTO Dune data received
+
+The Dune data arrived as `/Users/meuge/Downloads/dune_data.zip` and is now cooked through `src.pipeline_dune`.
+
+Tracked outputs:
+- `data/raw/x402_live_traffic.parquet`
+- `data/raw/x402_baseline.parquet`
+- `data/raw/x402_snapshot_2025_06_early_adopters.parquet`
+- `data/raw/x402_snapshot_2025_10_post_linux_fdn.parquet`
+- `data/raw/x402_snapshot_2026_01_post_stripe.parquet`
+- `data/raw/x402_snapshot_2026_04_current.parquet`
+- `data/processed/dune_x402_events.parquet`
+- `data/processed/dune_x402_features.parquet`
+- `data/processed/dune_x402_scores.parquet`
+- `data/processed/dune_x402_embedding.parquet`
+- `data/processed/dune_x402_snapshot_summary.parquet`
+
+See [18_dune_cto_data.md](18_dune_cto_data.md) for the detailed import notes.
+
 ## Not easy today / cofounder queue
 
-1. **Dune x402 dashboards**
-   - Likely useful for volume and aggregate trend, but requires either manual dashboard export or Dune API key.
-
-2. **BigQuery Blockchain Analytics**
+1. **BigQuery Blockchain Analytics**
    - Good for broader Base/Ethereum baseline, but requires GCP auth/project setup and table-name confirmation.
 
-3. **BaseScan / Etherscan v2**
+2. **BaseScan / Etherscan v2**
    - Easy technically, but needs API key for stable higher-volume pulls.
 
-4. **Forta alerts**
+3. **Forta alerts**
    - Good weak labels for compromised/exploit wallets, but needs alert taxonomy work before cooking.
 
-5. **x402scan internal API**
+4. **x402scan internal API**
    - Public page is visible, but easy API endpoint was not obvious from a quick probe. Worth inspecting in browser/devtools if more x402-specific history is needed.

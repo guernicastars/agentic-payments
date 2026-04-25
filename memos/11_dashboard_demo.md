@@ -9,7 +9,7 @@ Working name: **Agentic Payment Risk Console**.
 The previous dashboard was visually interesting but under-explained: it led with a scatterplot before telling the viewer what decision the product helps them make. The Polymarket dashboard pattern is better: overview cards, tabbed tables, badges, factor bars, and ranked queues. The redesigned app follows that pattern.
 
 Single-screen analyst console:
-- Dataset switch: **Synthetic stress test** vs **Public x402 Base**.
+- Dataset switch: **Synthetic stress test**, **Dune x402 + baseline**, and **Public x402 Base**.
 - Executive readout: one paragraph that says what the current data proves and what it does not prove.
 - Metrics: transactions, wallets scored, immediate queue, watchlist, and either compromise recall or recipient count.
 - Triage tab: alert queue with wallet, score, tier, action, policy, tx count, concentration, and explanation.
@@ -23,8 +23,9 @@ Single-screen analyst console:
 1. "This is a triage console for agentic payment risk."
 2. Open on the Synthetic stress test. Show that deterministic agents, compromised drift, and collusion rings enter the queue while humans do not.
 3. Read the selected case explanation out loud: timing, method concentration, counterparty concentration, coordination.
-4. Switch to Public x402 Base. Say: "On real public x402 traffic today, we see watchlist behaviour but no high-severity fraud claim yet. That honesty is the point."
-5. Use the Coordination tab to make compromised-agent contagion concrete.
+4. Switch to Dune x402 + baseline. Say: "This is the CTO pull: real x402 rows scored against ordinary Base traffic, with a snapshot trend table behind it."
+5. Switch to Public x402 Base. Say: "On real public x402 traffic today, we see watchlist behaviour but no high-severity fraud claim yet. That honesty is the point."
+6. Use the Coordination tab to make compromised-agent contagion concrete.
 
 ## Dashboard commands
 

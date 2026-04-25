@@ -18,6 +18,7 @@ Build command: `bash memos/build.sh` (builds all PDFs) or `bash memos/build.sh <
 - [10_alternative_datasets.md](10_alternative_datasets.md) / [.tex](10_alternative_datasets.tex) / [.pdf](10_alternative_datasets.pdf) — Backup datasets and weak-label sources.
 - [12_public_data_collection.md](12_public_data_collection.md) / [.tex](12_public_data_collection.tex) / [.pdf](12_public_data_collection.pdf) — No-key live x402 collection (x402.watch + Blockscout).
 - [15_data_integration_plan.md](15_data_integration_plan.md) / [.tex](15_data_integration_plan.tex) / [.pdf](15_data_integration_plan.pdf) — Dune snapshots integration architecture (parallel to memo 12 live track).
+- [18_dune_cto_data.md](18_dune_cto_data.md) — CTO Dune zip import, parity check with `data/raw/x402_*.parquet`, and cooked Dune-x402-baseline dataset wired into the dashboard.
 
 ## Empirically validated (with hypothesis tests)
 

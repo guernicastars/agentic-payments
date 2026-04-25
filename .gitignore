@@ -39,6 +39,7 @@ data/raw/dune_results/*
 !data/**/sample_*.csv
 !data/raw/x402_*.parquet
 !data/processed/real_x402*.parquet
+!data/processed/dune_x402*.parquet
 
 # Results: ignore everything except curated pitch artifacts and experiment outputs
 results/figures/*
@@ -52,6 +53,7 @@ results/figures/*
 results/tables/*
 !results/tables/.gitkeep
 !results/tables/*.csv
+
 
 *.png
 *.pdf
