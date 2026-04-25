@@ -45,6 +45,12 @@ Build command: `bash memos/build.sh` (builds all PDFs) or `bash memos/build.sh <
 
 - [22_runtime_repositioning.md](22_runtime_repositioning.md) / [.tex](22_runtime_repositioning.tex) / [.pdf](22_runtime_repositioning.pdf) — From "fraud detection" to "runtime risk control for autonomous payments". Six-dimension risk vector (agent-likeness · drift · coordination · policy violation · counterparty · prompt-injection), three-decision model (Allow / Review / Block), four scenario presets (incl. prompt-injected invoice), 90-day product roadmap, wedge vs Stripe Radar / Visa / Sardine / Chainalysis. Supersedes positioning in memos 01 and 02.
 
+## Venture development
+
+- [23_venture_plan.md](23_venture_plan.md) — Full cofounder venture-development plan: 6-layer product architecture, 90-day roadmap, ICPs, GTM strategy, pricing tiers, competitive map, defensibility thesis. Core positioning: "We make autonomous financial agents governable."
+- [24_hackathon_priorities.md](24_hackathon_priorities.md) — Saturday execution plan ranked by pitch gain: Tier S (prompt-injection scenario, risk vector, rebrand), Tier A (adversarial evader, Louvain rings), Tier B (week-1 only).
+- [25_improvement_ideas.md](25_improvement_ideas.md) — Ranked post-pitch gaps: real fraud labels, Louvain ring naming, adversarial evader stress test, counterfactual explanations, wider snapshot windows.
+
 ## Experimental code
 
 | Hypothesis | Memo | Code | Verdict |
