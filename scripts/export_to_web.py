@@ -1,17 +1,24 @@
-"""Pre-compute every artefact needed by the Next.js port and dump as JSON.
+"""Pre-compute every artefact the Vercel port needs and dump as JSON.
+
+For each demo scenario we emit a separate pre-rolled LiveTracker stream so
+the web app is a pure replay. Scenarios:
+
+  base_x402              -- recorded public x402 settlements (real Base
+                            data); the production-honest demo
+  compromised_drift      -- synthetic, agent_compromised dominates so the
+                            pitch shows drift-led alerts
+  collusion_ring         -- synthetic, multiple coordinated wallets so the
+                            pitch shows coordination-led alerts
+  prompt_injected_invoice -- synthetic, the prompt-injected scenario;
+                            the most agentic-specific story
 
 Outputs:
-  web/public/data/events.json     -- one record per LiveTracker tick
-                                     (tx, population_size, warming_up,
-                                      score / tier on the source wallet,
-                                      alert payload if fired)
-  web/public/data/trend.json      -- per-snapshot aggregates for the
-                                     12-month trend chart
-  web/public/data/scores.json     -- final live-population score table
-                                     (top 25, for the leaderboard)
-  web/public/data/embedding.json  -- pre-computed UMAP coords for the
-                                     behaviour-map scatter
-  web/public/data/meta.json       -- counts + build timestamp
+  web/public/data/scenarios/<key>/events.json
+  web/public/data/scenarios/<key>/scores.json
+  web/public/data/scenarios/<key>/embedding.json
+  web/public/data/trend.json                  (snapshot trend, scenario-agnostic)
+  web/public/data/meta.json                   (build timestamp + scenario list +
+                                               headline numbers)
 
 Run from repo root:  python scripts/export_to_web.py
 """
@@ -20,15 +27,26 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 import warnings
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-from src.live.tracker import LiveTracker, demo_replay
+from src.features.fingerprint import compute_features
+from src.ingest.synthetic import generate
+from src.live.tracker import (
+    SUBSCORE_KEYS,
+    LiveTracker,
+    ReplayStream,
+    demo_replay,
+)
+from src.models.score import score_wallets
 from src.viz.trend import LOCKED_NUMBERS, aggregate_from_files
 
 
@@ -37,7 +55,15 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 REPLAY_PARQUET = Path("data/processed/real_x402_payments.parquet")
 OUT_DIR = Path("web/public/data")
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass
+class Scenario:
+    key: str
+    label: str
+    description: str
+    builder: Callable[[], pd.DataFrame]
+    max_ticks: int = 360
 
 
 def _safe_float(v) -> float | None:
@@ -50,19 +76,129 @@ def _safe_float(v) -> float | None:
         return None
 
 
-def export_events(max_ticks: int = 360) -> int:
-    tracker = LiveTracker(demo_replay(REPLAY_PARQUET))
+# -------- scenario builders ------------------------------------------------
+
+def build_base_x402() -> pd.DataFrame:
+    """Real Base x402 settlements, hand-curated for fast warm-up.
+
+    Used by the existing `demo_replay` -> ReplayStream pipeline directly;
+    we just return the underlying DataFrame so the per-scenario stream
+    construction below is uniform.
+    """
+    return demo_replay(REPLAY_PARQUET)._df  # noqa: SLF001 — internal but OK here
+
+
+def _round_robin_sort(df: pd.DataFrame, top_n_for_phase1: int = 20) -> pd.DataFrame:
+    df = df.sort_values("block_time_s", kind="stable").reset_index(drop=True)
+    if len(df) == 0:
+        return df
+    groups = {a: g.copy() for a, g in df.groupby("from_addr", sort=False)}
+    wallet_order = df["from_addr"].value_counts().index.tolist()
+    opening_idx = [groups[a].index[0] for a in wallet_order[:top_n_for_phase1]]
+    opening_df = df.loc[opening_idx]
+    tail = df[~df.index.isin(opening_idx)].copy()
+    return pd.concat([opening_df, tail], ignore_index=True)
+
+
+def build_compromised_drift() -> pd.DataFrame:
+    """Synthetic — many compromised agents drift mid-window, plus baseline payment-bots.
+    Population sized > MIN_POPULATION so warm-up clears."""
+    txs, _ = generate(
+        n_human=35, n_agent_arb=15, n_agent_payment=18,
+        n_agent_compromised=20, n_prompt_injected=0, n_collusion_rings=0,
+        duration_hours=18.0, seed=11,
+    )
+    return _round_robin_sort(txs)
+
+
+def build_collusion_ring() -> pd.DataFrame:
+    """Synthetic — multiple rings coordinating bursts in a denser population."""
+    txs, _ = generate(
+        n_human=35, n_agent_arb=12, n_agent_payment=12,
+        n_agent_compromised=4, n_prompt_injected=0, n_collusion_rings=4,
+        ring_size_min=6, ring_size_max=9,
+        duration_hours=14.0, seed=13,
+    )
+    return _round_robin_sort(txs)
+
+
+def build_prompt_injected_invoice() -> pd.DataFrame:
+    """Synthetic — a wave of prompt-injected agents diverts payments."""
+    txs, _ = generate(
+        n_human=30, n_agent_arb=12, n_agent_payment=14,
+        n_agent_compromised=3, n_prompt_injected=14, n_collusion_rings=0,
+        duration_hours=12.0, seed=17,
+    )
+    return _round_robin_sort(txs)
+
+
+SCENARIOS: list[Scenario] = [
+    Scenario(
+        key="base_x402",
+        label="Public x402 (Base)",
+        description=(
+            "Recorded x402 EIP-3009 settlements pulled from Base via "
+            "Blockscout. The honest demo: real wallets, real flow, "
+            "scoring computed live."
+        ),
+        builder=build_base_x402,
+    ),
+    Scenario(
+        key="compromised_drift",
+        label="Compromised agent (drift)",
+        description=(
+            "Synthetic — agents start as well-behaved x402 payment bots "
+            "and drift to a new counterparty + value pattern after t=8h. "
+            "The classic 'compromised credential' fraud shape."
+        ),
+        builder=build_compromised_drift,
+    ),
+    Scenario(
+        key="collusion_ring",
+        label="Collusion ring",
+        description=(
+            "Synthetic — three coordinated rings of 6-8 wallets each "
+            "fire bursts within 60s windows on shared counterparties."
+        ),
+        builder=build_collusion_ring,
+    ),
+    Scenario(
+        key="prompt_injected_invoice",
+        label="Prompt-injected invoice",
+        description=(
+            "Synthetic — agent reads a tampered invoice mid-window and "
+            "diverts payments to an attacker wallet. The agentic-"
+            "specific failure mode: action / intent mismatch."
+        ),
+        builder=build_prompt_injected_invoice,
+    ),
+]
+
+
+# -------- exporters --------------------------------------------------------
+
+def _events_for_scenario(s: Scenario) -> list[dict]:
+    df = s.builder()
+    stream = ReplayStream.__new__(ReplayStream)
+    stream._df = df.reset_index(drop=True)  # type: ignore[attr-defined]
+    stream._cursor = 0  # type: ignore[attr-defined]
+    tracker = LiveTracker(stream)
     events: list[dict] = []
-    for tick_no in range(1, max_ticks + 1):
+    for tick_no in range(1, s.max_ticks + 1):
         e = tracker.tick()
         if e is None:
             break
         wallet = str(e.tx.get("from_addr", ""))
+        scores = e.scores
         wallet_score = None
         wallet_tier = None
-        if len(e.scores) and wallet in e.scores.index:
-            wallet_score = _safe_float(e.scores.loc[wallet, "composite_score"])
-            wallet_tier = str(e.scores.loc[wallet, "tier"])
+        sub: dict[str, float | None] = {k: None for k in SUBSCORE_KEYS}
+        if len(scores) and wallet in scores.index:
+            wallet_score = _safe_float(scores.loc[wallet, "overall_action_risk"])
+            wallet_tier = str(scores.loc[wallet, "tier"])
+            for k in SUBSCORE_KEYS:
+                if k in scores.columns:
+                    sub[k] = _safe_float(scores.loc[wallet, k])
         events.append({
             "tick": tick_no,
             "tx": {
@@ -72,119 +208,132 @@ def export_events(max_ticks: int = 360) -> int:
                 "tx_hash": str(e.tx.get("tx_hash", "")),
                 "block_time_s": _safe_float(e.tx.get("block_time_s")) or 0.0,
                 "method_id": str(e.tx.get("method_id", "")),
+                "prompt_injection_flag": bool(e.tx.get("prompt_injection_flag", False)),
             },
             "population_size": int(e.population_size),
             "warming_up": bool(e.warming_up),
             "score": wallet_score,
             "tier": wallet_tier,
+            "subscores": sub,
             "alert": e.alert if e.alert else None,
         })
-    OUT_DIR.joinpath("events.json").write_text(json.dumps(events))
-    return len(events)
+    # Final scores for this scenario (for leaderboard + embedding pages)
+    final_scores = pd.DataFrame()
+    flat: list[dict] = []
+    for buf in tracker._buffers.values():  # type: ignore[attr-defined]
+        flat.extend(buf)
+    if flat:
+        feats = compute_features(pd.DataFrame(flat)).fillna(0.0)
+        if len(feats):
+            final_scores = score_wallets(feats)
+    return events, final_scores
+
+
+def _leaderboard(scored: pd.DataFrame) -> list[dict]:
+    if len(scored) == 0:
+        return []
+    scored = scored.reset_index().rename(columns={"index": "wallet"})
+    if "wallet" not in scored.columns:
+        scored.rename(columns={"from_addr": "wallet"}, inplace=True)
+    scored = scored.sort_values("overall_action_risk", ascending=False).reset_index(drop=True)
+    rows = []
+    for _, r in scored.head(25).iterrows():
+        wallet = str(r["wallet"])
+        rows.append({
+            "wallet": wallet,
+            "wallet_short": wallet[:10] + "...",
+            "score": _safe_float(r.get("overall_action_risk")) or 0.0,
+            "tier": str(r.get("tier", "low")),
+            "subscores": {k: _safe_float(r.get(k)) or 0.0 for k in SUBSCORE_KEYS if k in r.index},
+            "explanation": str(r.get("explanation", "")),
+        })
+    return rows
+
+
+def _embedding(scored: pd.DataFrame) -> list[dict]:
+    """2D PCA over the six sub-scores. Cheap, deterministic, no numba."""
+    if len(scored) < 3:
+        return []
+    cols = [k for k in SUBSCORE_KEYS if k in scored.columns]
+    if len(cols) < 2:
+        return []
+    X = scored[cols].fillna(0.0).to_numpy()
+    # Standardise; if a column is zero (e.g. prompt_injection_score on real
+    # data) the std handling already returns 0/(1e-9)->0 column, fine.
+    mu = X.mean(0)
+    sigma = X.std(0)
+    sigma[sigma == 0] = 1.0
+    Xs = (X - mu) / sigma
+    pcs = PCA(n_components=2, random_state=0).fit_transform(Xs)
+    out = []
+    for i, (addr, r) in enumerate(scored.iterrows()):
+        wallet = str(addr)
+        out.append({
+            "wallet": wallet,
+            "wallet_short": wallet[:10] + "...",
+            "x": float(pcs[i, 0]),
+            "y": float(pcs[i, 1]),
+            "score": _safe_float(r.get("overall_action_risk")) or 0.0,
+            "tier": str(r.get("tier", "low")),
+        })
+    return out
 
 
 def export_trend() -> int:
     try:
         agg = aggregate_from_files(include_excluded=True)
+        source = "live_snapshots" if len(agg) else "locked_numbers"
         if len(agg) == 0:
             agg = LOCKED_NUMBERS.copy()
             agg["volume_usd"] = (agg["mean_tx_usd"] * agg["tx_count"]).round(2)
-            source = "locked_numbers"
-        else:
-            source = "live_snapshots"
     except Exception:
         agg = LOCKED_NUMBERS.copy()
         agg["volume_usd"] = (agg["mean_tx_usd"] * agg["tx_count"]).round(2)
         source = "locked_numbers"
-    rows = [{k: (None if pd.isna(v) else (float(v) if isinstance(v, (int, float, np.integer, np.floating)) else str(v)))
-             for k, v in r.items()}
-            for r in agg.to_dict(orient="records")]
+    rows = [
+        {k: (None if pd.isna(v) else (float(v) if isinstance(v, (int, float, np.integer, np.floating)) else str(v)))
+         for k, v in r.items()}
+        for r in agg.to_dict(orient="records")
+    ]
     OUT_DIR.joinpath("trend.json").write_text(json.dumps({"source": source, "rows": rows}))
     return len(rows)
 
 
-def export_scores_and_embedding() -> tuple[int, int]:
-    """Run the full LiveTracker stream once, dump final scores + 2D embedding.
+def main() -> None:
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    scenarios_dir = OUT_DIR / "scenarios"
+    if scenarios_dir.exists():
+        shutil.rmtree(scenarios_dir)
+    scenarios_dir.mkdir(parents=True)
 
-    Pre-projection uses PCA (cheap, deterministic). UMAP would be nicer but
-    drags in numba; PCA is good enough for the pitch scatter.
-    """
-    tracker = LiveTracker(demo_replay(REPLAY_PARQUET))
-    last_scores: pd.DataFrame | None = None
-    last_event = None
-    while True:
-        e = tracker.tick()
-        if e is None:
-            break
-        if len(e.scores):
-            last_scores = e.scores
-        last_event = e
-
-    if last_scores is None or len(last_scores) == 0:
-        OUT_DIR.joinpath("scores.json").write_text(json.dumps([]))
-        OUT_DIR.joinpath("embedding.json").write_text(json.dumps([]))
-        return 0, 0
-
-    scored = last_scores.reset_index().rename(columns={"index": "wallet"})
-    if "wallet" not in scored.columns:
-        scored.rename(columns={"from_addr": "wallet"}, inplace=True)
-    if "wallet" not in scored.columns:
-        scored["wallet"] = scored.iloc[:, 0]
-    scored = scored.sort_values("composite_score", ascending=False).reset_index(drop=True)
-
-    # Top 25 leaderboard
-    top = scored.head(25).copy()
-    leaderboard = []
-    for _, r in top.iterrows():
-        wallet = str(r["wallet"])
-        leaderboard.append({
-            "wallet": wallet,
-            "wallet_short": wallet[:10] + "...",
-            "score": _safe_float(r.get("composite_score")) or 0.0,
-            "tier": str(r.get("tier", "low")),
-            "explanation": str(r.get("explanation", "")),
+    scenario_meta = []
+    for s in SCENARIOS:
+        sdir = scenarios_dir / s.key
+        sdir.mkdir(parents=True, exist_ok=True)
+        events, scored = _events_for_scenario(s)
+        sdir.joinpath("events.json").write_text(json.dumps(events))
+        leaderboard = _leaderboard(scored)
+        sdir.joinpath("scores.json").write_text(json.dumps(leaderboard))
+        embedding = _embedding(scored)
+        sdir.joinpath("embedding.json").write_text(json.dumps(embedding))
+        n_alerts = sum(1 for e in events if e.get("alert"))
+        scenario_meta.append({
+            "key": s.key,
+            "label": s.label,
+            "description": s.description,
+            "events": len(events),
+            "alerts": n_alerts,
+            "leaderboard_rows": len(leaderboard),
+            "embedding_rows": len(embedding),
         })
-    OUT_DIR.joinpath("scores.json").write_text(json.dumps(leaderboard))
+        print(f"{s.key:30s} events={len(events):4d}  alerts={n_alerts:3d}  scored_wallets={len(scored)}")
 
-    # 2D embedding via PCA over factor columns
-    factor_cols = [
-        "inter_arrival_anomaly", "tod_uniformity_anomaly", "gas_tightness_anomaly",
-        "counterparty_concentration", "method_concentration", "burst_intensity",
-        "drift_signal", "coordination",
-    ]
-    avail = [c for c in factor_cols if c in scored.columns]
-    n_emb = 0
-    if len(avail) >= 2 and len(scored) >= 3:
-        X = scored[avail].fillna(0.0).to_numpy()
-        # Standardise
-        X = (X - X.mean(0)) / (X.std(0) + 1e-9)
-        pcs = PCA(n_components=2, random_state=0).fit_transform(X)
-        emb_rows = []
-        for i, (_, r) in enumerate(scored.iterrows()):
-            wallet = str(r["wallet"])
-            emb_rows.append({
-                "wallet": wallet,
-                "wallet_short": wallet[:10] + "...",
-                "x": float(pcs[i, 0]),
-                "y": float(pcs[i, 1]),
-                "score": _safe_float(r.get("composite_score")) or 0.0,
-                "tier": str(r.get("tier", "low")),
-            })
-        OUT_DIR.joinpath("embedding.json").write_text(json.dumps(emb_rows))
-        n_emb = len(emb_rows)
-    else:
-        OUT_DIR.joinpath("embedding.json").write_text(json.dumps([]))
+    trend_n = export_trend()
 
-    return len(leaderboard), n_emb
-
-
-def export_meta(events_n: int, trend_n: int, scores_n: int, emb_n: int) -> None:
     meta = {
         "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "events": events_n,
         "trend_rows": trend_n,
-        "scores_rows": scores_n,
-        "embedding_rows": emb_n,
+        "scenarios": scenario_meta,
         "headline": {
             "median_compression": 100,
             "volume_growth": 28000,
@@ -193,17 +342,8 @@ def export_meta(events_n: int, trend_n: int, scores_n: int, emb_n: int) -> None:
         },
     }
     OUT_DIR.joinpath("meta.json").write_text(json.dumps(meta, indent=2))
-
-
-def main() -> None:
-    events_n = export_events()
-    trend_n = export_trend()
-    scores_n, emb_n = export_scores_and_embedding()
-    export_meta(events_n, trend_n, scores_n, emb_n)
-    print(f"events:    {events_n:5d} -> web/public/data/events.json")
-    print(f"trend:     {trend_n:5d} -> web/public/data/trend.json")
-    print(f"scores:    {scores_n:5d} -> web/public/data/scores.json")
-    print(f"embedding: {emb_n:5d} -> web/public/data/embedding.json")
+    print(f"\ntrend rows: {trend_n}")
+    print(f"wrote {len(SCENARIOS)} scenarios -> web/public/data/scenarios/")
 
 
 if __name__ == "__main__":

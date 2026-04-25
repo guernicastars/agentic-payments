@@ -41,6 +41,10 @@ Build command: `bash memos/build.sh` (builds all PDFs) or `bash memos/build.sh <
 - [20_vc_deck_plan.md](20_vc_deck_plan.md) — VC pitch deck construction plan: 14-slide structure with TAM/SAM/SOM derivation, business model, GTM, competition map, and ask. Saturday leave-behind + full deck the following week.
 - [21_market_research.md](21_market_research.md) — Sourced market research: TAM ($67B → $244B), SAM ($170M-$1.7B agent fraud by 2030), competitive landscape (Sardine $660M, Persona $2B, Feedzai $2B, Stripe-Bridge $1.1B), x402 decline context, target customer list, M&A comps. Replaces placeholder figures in memo 20.
 
+## Repositioning
+
+- [22_runtime_repositioning.md](22_runtime_repositioning.md) / [.tex](22_runtime_repositioning.tex) / [.pdf](22_runtime_repositioning.pdf) — From "fraud detection" to "runtime risk control for autonomous payments". Six-dimension risk vector (agent-likeness · drift · coordination · policy violation · counterparty · prompt-injection), three-decision model (Allow / Review / Block), four scenario presets (incl. prompt-injected invoice), 90-day product roadmap, wedge vs Stripe Radar / Visa / Sardine / Chainalysis. Supersedes positioning in memos 01 and 02.
+
 ## Experimental code
 
 | Hypothesis | Memo | Code | Verdict |

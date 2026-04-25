@@ -1,0 +1,186 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Runtime risk control repositioning + 90-day roadmap}\\
+\large Memo 18}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25 (late evening, post-pitch-prep refactor)
+
+This memo formalises the venture-development repositioning we picked up from a long strategy review and captures what changed in the codebase as a result. It supersedes the framing in memos 01 and 02 wherever they conflict.
+
+\section{TL;DR}
+We are not "fraud detection for AI". We are:
+
+\begin{quote}
+\textbf{A runtime risk and control layer for autonomous payment agents.} \emph{We monitor, score, and govern financial actions taken by AI agents before money moves.}
+\end{quote}
+This frees us from needing labelled fraud and lets us cover compromise, collusion, prompt-injection, policy breach, and audit --- the categories where existing card-and-merchant fraud systems have no signal.
+
+\section{What changed in the product}
+\subsubsection*{1. Score vector, not single score}
+\code{src/models/score.py} returns six sub-scores per wallet plus an overall risk number. The eight underlying behavioural factor signals still exist (they drive the explanations) but the buyer-facing surface is the vector:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Sub-score & What it asks \\
+\midrule
+\code{agent_likeness_score} & Is this actor machine-shaped? (descriptive --- not accusatory) \\
+\code{drift_score} & Has its behaviour changed inside the window? \\
+\code{coordination_score} & Does it move in sync with other actors? \\
+\code{policy_violation_score} & Is this action outside delegated authority? \\
+\code{counterparty_risk_score} & Is the recipient suspicious? \\
+\code{prompt_injection_score} & Did external content manipulate the action? \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Weights (sum = 1.0) bias toward the dimensions a runtime control buyer cares about: \code{policy_violation} and \code{drift} weighted at 25\%, agent-likeness at 10\% (legitimate automation looks agent-like by design and we don't want to penalise it).
+
+The legacy \code{composite_score} column is kept as an alias for \code{overall_action_risk} so the Streamlit dashboard, the JSON exporter, and existing tests keep working without back-compat shims.
+
+\subsubsection*{2. Three-decision framing --- Allow / Review / Block}
+Both UIs (Streamlit \code{Live Risk} tab and the Vercel \code{Live Action Risk} component) now stamp every action with a decision instead of a "fraud yes/no":
+
+\begin{itemize}
+  \item \textbf{Allow} --- overall risk low, no critical sub-score, no alert.
+  \item \textbf{Review} --- alert fires, top sub-score 75--89 OR tier high.
+  \item \textbf{Block} --- top sub-score \textbackslash{}\$\textbackslash{}geq\textbackslash{}\$ 90 OR tier critical.
+\end{itemize}
+This matches the runtime-control product shape: the buyer configures the thresholds per agent.
+
+\subsubsection*{3. Alerts on \textbf{any} sub-score crossing 75/100}
+\code{src/live/tracker.py} previously alerted only when the wallet entered the top 8\% of \code{composite_score}. With six dimensions, that's the wrong gate --- "this wallet is at 95 on policy violation" is a louder signal than "overall composite at 44, top of bell curve". The new gate fires when either of two conditions is true (and the cooldown allows):
+
+\begin{enumerate}
+  \item The wallet's \code{overall_action_risk} enters the live population's top 8\%, OR
+  \item Any of the six sub-scores \textbackslash{}\$\textbackslash{}geq\textbackslash{}\$ \code{ALERT_SUBSCORE_FLOOR} (75/100).
+\end{enumerate}
+\code{MIN_WALLET_TX} was lowered from 8 to 3 because the public x402 sample's median wallet has 1--3 transactions and the old threshold suppressed all real-data alerts. Synthetic scenarios have 50+ tx per wallet so the floor is only protective against single-tx noise.
+
+\subsubsection*{4. Four scenario presets}
+\code{scripts/export_to_web.py} now emits four pre-rolled streams under \code{web/public/data/scenarios/<key>/}:
+
+\begin{itemize}
+  \item \textbf{\code{base_x402}} --- recorded public x402 EIP-3009 settlements; the honest
+\end{itemize}
+demo. 29 alerts in a 360-tick replay.
+
+\begin{itemize}
+  \item \textbf{\code{compromised_drift}} --- synthetic, 20 compromised agents drift after
+\end{itemize}
+t=8h. Drift-led alerts, \textasciitilde{}58 in 360 ticks.
+
+\begin{itemize}
+  \item \textbf{\code{collusion_ring}} --- synthetic, four rings of 6--9 wallets each fire
+\end{itemize}
+coordinated bursts. Coordination-led alert.
+
+\begin{itemize}
+  \item \textbf{\code{prompt_injected_invoice}} --- synthetic, the new policy from
+\end{itemize}
+\code{src/ingest/synthetic.py:gen_prompt_injected_invoice}. Agent reads a tampered invoice mid-window, diverts payments to an attacker wallet. This is the agentic-specific failure mode that justifies the runtime- control category (no card fraud system has a signal for this).
+
+Each scenario has its own \code{events.json}, \code{scores.json}, \code{embedding.json}. The web LiveTracker / Leaderboard / BehaviourMap components have a scenario selector at the top.
+
+\subsubsection*{5. New synthetic policy: \code{prompt_injected_invoice}}
+\code{gen_prompt_injected_invoice(world, addr, injection_t=6h)} produces an agent that:
+
+\begin{itemize}
+  \item Phase 1 (t < injection\_t): well-behaved x402 payment-bot to a known
+\end{itemize}
+vendor. Looks identical to \code{agent_payment_bot}.
+
+\begin{itemize}
+  \item Phase 2: the injected invoice rewrites the payment address. Agent
+\end{itemize}
+diverts payments to an attacker wallet from \code{world.malicious_pool}. Each diverted tx carries \code{prompt_injection_flag=True} --- this is the runtime hook a real product would surface from the agent's tool trace; the synthetic generator just stamps it directly so the scoring path can detect it.
+
+The flag is aggregated by \code{compute_features()} into \code{prompt_injection_share}, which \code{_subscores()} rolls into \code{prompt_injection_score}. In real-data ingest paths the column is absent and the score defaults to 0 --- honest about what the system can and cannot see today.
+
+\section{What we did \emph{not} build (and why)}
+We resisted the urge to ship a half-baked version of the full venture roadmap before the Saturday pitch. Specifically, the following live in memo 18's \emph{roadmap} section, not the codebase:
+
+\begin{itemize}
+  \item Canonical entity graph (Agent / User / Tool / Invoice / etc.). The
+\end{itemize}
+current product is wallet-centric; entity-centric is post-pitch.
+
+\begin{itemize}
+  \item Hard policy engine. Today the policy\_violation\_score is a behavioural
+\end{itemize}
+proxy (large\_value\_share + new\_counterparty\_late\_share). The next milestone is configurable rules with simulation mode.
+
+\begin{itemize}
+  \item Pre-transaction \code{risk.checkAction()} API. Today we replay; the runtime
+\end{itemize}
+hook is the next milestone.
+
+\begin{itemize}
+  \item Case queue / review workflow. Mocked in the dashboard, not yet a real
+\end{itemize}
+workflow.
+
+Shipping fakes of these would have undermined the methodology pitch. Naming them as the next 90 days is stronger as an investor story than showing a stub.
+
+\section{Disclaimer (now in the web Footer)}
+\begin{quote}
+Demo uses synthetic ground-truth labels and recently-decoded public Base x402 settlements. Scores reflect behavioural anomaly and policy-breach likelihood, not legal determinations.
+\end{quote}
+The web Footer now has a "What we score / What we explicitly don't" two-column block above the memo grid. This is intentional honesty: a buyer or judge who reads it sees that we know exactly what we have and don't, which is more credible than an over-claim.
+
+\section{90-day roadmap (deck slide)}
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Days & Milestone \\
+\midrule
+1--10 & Pre-pitch repositioning (this memo, score vector, scenarios) --- DONE \\
+11--30 & Canonical event schema (\code{payment_event}, \code{agent_action_event}, \code{tool_call_event}, \code{authorization_policy}, \code{risk_score}, \code{case}) \\
+31--60 & \code{risk.checkAction()} pre-transaction API + LangChain / OpenAI Agents / MCP integration \\
+61--90 & Pilot package: data import templates, risk report generator, policy simulation, pilot pricing \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Wedge vs incumbents (one-liner per)}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Incumbent & Their lane & Our wedge \\
+\midrule
+Stripe Radar & Card / merchant fraud & We govern the agent \textbf{before} Stripe sees the payment \\
+Visa / MA & Network-level authorization & We score agent behaviour across rails and runtimes \\
+Sardine / Sift & Human + device fingerprints & We fingerprint \textbf{agents}: tools, delegation, drift \\
+Chainalysis & Wallet illicit-fund tracing & We score behavioural risk + policy breach + injection \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Code pointers}
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Area & Path \\
+\midrule
+Six sub-scores & \code{src/models/score.py} \\
+Prompt-injected scenario & \code{src/ingest/synthetic.py:gen_prompt_injected_invoice} \\
+Live tracker alert logic & \code{src/live/tracker.py} \\
+Scenario JSON export & \code{scripts/export_to_web.py} \\
+Web LiveTracker (sub-score bars + decision badges) & \code{web/components/LiveTracker.tsx} \\
+Web Leaderboard (top sub-score column) & \code{web/components/Leaderboard.tsx} \\
+Web Hero (positioning) & \code{web/components/Hero.tsx} \\
+Web Footer (threat model + disclaimer) & \code{web/components/Footer.tsx} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Next memo}
+\code{19_pre_seed_deck_outline.md} will translate this into the 12-slide investor deck. Out of scope tonight.
+
+\end{document}

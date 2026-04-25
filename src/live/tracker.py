@@ -49,9 +49,28 @@ from src.models.score import score_wallets
 # Curated replay grows population to ~30 within the first ~30 ticks so a
 # 2-min demo at 1s/tick clears warm-up well before the headline beat.
 MIN_POPULATION = 25
-MIN_WALLET_TX = 8
-ALERT_PERCENTILE = 0.92   # top ~8% of population
+MIN_WALLET_TX = 3  # tuned for the public x402 sample (median wallet has 1-3 tx);
+                   # synthetic scenarios have 50+ tx per wallet so this is
+                   # only a floor against single-tx noise.
+
+# Alert criterion (post-runtime-risk-control refactor):
+#   any sub-score >= ALERT_SUBSCORE_FLOOR  ⇒ alert
+#   wallet's overall_action_risk in top 8% ⇒ alert
+# The first criterion is the buyer-facing signal — "Policy violation 95/100,
+# Counterparty risk 100/100" is louder than a damped overall composite.
+# The second catches wallets that are diffuse-but-high.
+ALERT_SUBSCORE_FLOOR = 75.0
+ALERT_PERCENTILE = 0.92
 TX_BUFFER_PER_WALLET = 200
+
+SUBSCORE_KEYS = (
+    "agent_likeness_score",
+    "drift_score",
+    "coordination_score",
+    "policy_violation_score",
+    "counterparty_risk_score",
+    "prompt_injection_score",
+)
 
 
 @dataclass
@@ -213,20 +232,34 @@ class LiveTracker:
             and wallet in scored.index
             and len(scored) >= MIN_POPULATION
         ):
-            wallet_score = float(scored.loc[wallet, "composite_score"])
-            cutoff = float(scored["composite_score"].quantile(ALERT_PERCENTILE))
+            row = scored.loc[wallet]
+            wallet_score = float(row["overall_action_risk"])
+            sub_values = {k: float(row[k]) for k in SUBSCORE_KEYS if k in scored.columns}
+            top_subscore_name, top_subscore_value = max(
+                sub_values.items(), key=lambda kv: kv[1]
+            ) if sub_values else ("overall_action_risk", wallet_score)
+            cutoff = float(scored["overall_action_risk"].quantile(ALERT_PERCENTILE))
             # Cooldown: don't re-alert the same wallet within 30 ticks
             # (~30s at 1s/tick) — keeps the alert panel from being a single
             # wallet's repeating receipt.
             cooled = (self._tick_no - self._last_alert_at.get(wallet, -10**6)) > 30
-            if wallet_score >= cutoff and cooled:
-                row = scored.loc[wallet]
+            should_alert = (
+                top_subscore_value >= ALERT_SUBSCORE_FLOOR
+                or wallet_score >= cutoff
+            )
+            if should_alert and cooled:
+                top_factors = row["top_factors"] if "top_factors" in scored.columns else []
                 alert = {
                     "tick": self._tick_no,
                     "wallet": wallet,
                     "wallet_short": wallet[:10],
-                    "composite_score": wallet_score,
+                    "overall_action_risk": wallet_score,
+                    "composite_score": wallet_score,  # back-compat
                     "tier": str(row["tier"]),
+                    "subscores": sub_values,
+                    "top_factor_name": top_subscore_name,
+                    "top_factor_value": top_subscore_value,
+                    "top_factors": list(top_factors) if isinstance(top_factors, (list, tuple)) else [],
                     "explanation": str(row.get("explanation", "")),
                     "value_usd": float(tx.get("value_usd") or 0.0),
                     "tx_hash": str(tx.get("tx_hash", "")),

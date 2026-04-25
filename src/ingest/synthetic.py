@@ -114,6 +114,7 @@ def _emit(
     success: bool = True,
     is_x402: bool = False,
     facilitator: str | None = None,
+    prompt_injection_flag: bool = False,
 ) -> dict:
     seq = world.take_seq()
     return {
@@ -130,6 +131,7 @@ def _emit(
         "success": bool(success),
         "is_x402": bool(is_x402),
         "facilitator": facilitator,
+        "prompt_injection_flag": bool(prompt_injection_flag),
     }
 
 
@@ -256,6 +258,60 @@ def gen_agent_compromised(world: World, addr: str, drift_t: float = 8 * 3600.0) 
     return rows
 
 
+def gen_prompt_injected_invoice(world: World, addr: str, injection_t: float = 6 * 3600.0) -> list[dict]:
+    """A payment-bot agent that receives a tampered invoice mid-window.
+
+    Phase 1 (t < injection_t): legitimate x402 payments to the usual vendor
+    (looks like agent_payment_bot).
+    Phase 2 (t ≥ injection_t): the injected invoice rewrites the payment
+    address. The agent diverts a slug of payments to an attacker-controlled
+    wallet (drawn from the malicious pool). Each diverted tx carries
+    `prompt_injection_flag=True` — this is the runtime hook a real product
+    would surface from the agent's tool trace; the synthetic generator
+    just stamps it directly so the scoring path can detect it.
+    """
+    rng = world.rng
+    rows: list[dict] = []
+    fixed_payment_amount = float(rng.uniform(20, 200))
+    legit_recipient = rng.choice(world.payment_recipient_pool)
+    facilitator = str(rng.choice(SYNTH_FACILITATORS))
+
+    # Phase 1 — clean x402 payment-bot.
+    t = rng.exponential(scale=4 * 3600.0)
+    while t < min(injection_t, world.duration_s):
+        n_in_burst = int(rng.poisson(5)) + 1
+        for k in range(n_in_burst):
+            tt = t + k * rng.uniform(1.5, 4.0)
+            if tt >= injection_t or tt >= world.duration_s:
+                break
+            b = float(basefee_gwei(np.array([tt]))[0])
+            gp = b * 1.2 + rng.uniform(-0.001, 0.002)
+            gas_used = int(rng.normal(55000, 1500))
+            value = fixed_payment_amount * (1 + rng.normal(0, 0.02))
+            rows.append(_emit(world, addr, legit_recipient, float(tt), float(value), gas_used, gp, M_ERC20_TRANSFER,
+                              is_x402=True, facilitator=facilitator))
+        t += rng.exponential(scale=4 * 3600.0)
+
+    # Phase 2 — injected-invoice diversion.
+    attacker = rng.choice(world.malicious_pool)
+    t = injection_t
+    while t < world.duration_s:
+        n_in_burst = int(rng.poisson(4)) + 1
+        for k in range(n_in_burst):
+            tt = t + k * rng.uniform(1.0, 3.0)
+            if tt >= world.duration_s:
+                break
+            b = float(basefee_gwei(np.array([tt]))[0])
+            gp = b * 1.2 + rng.uniform(-0.001, 0.002)
+            gas_used = int(rng.normal(55000, 1500))
+            value = fixed_payment_amount * (1 + rng.normal(0, 0.04))
+            rows.append(_emit(world, addr, attacker, float(tt), float(value), gas_used, gp, M_ERC20_TRANSFER,
+                              is_x402=True, facilitator=facilitator,
+                              prompt_injection_flag=True))
+        t += rng.exponential(scale=4 * 3600.0)
+    return rows
+
+
 def gen_collusion_ring(world: World, addrs: list[str], ring_id: int) -> list[dict]:
     rng = world.rng
     rows: list[dict] = []
@@ -285,6 +341,7 @@ def generate(
     n_agent_arb: int = 40,
     n_agent_payment: int = 40,
     n_agent_compromised: int = 10,
+    n_prompt_injected: int = 5,
     n_collusion_rings: int = 2,
     ring_size_min: int = 5,
     ring_size_max: int = 10,
@@ -332,6 +389,12 @@ def generate(
         rows.extend(gen_agent_compromised(world, addr))
         label_rows.append({"addr": addr, "policy": "agent_compromised", "role": "agent_compromised", "ring_id": -1})
 
+    # Prompt-injected invoices — agent diverts payment after reading a tampered invoice
+    for i in range(n_prompt_injected):
+        addr = _addr("pinj", i)
+        rows.extend(gen_prompt_injected_invoice(world, addr))
+        label_rows.append({"addr": addr, "policy": "prompt_injected_invoice", "role": "agent_compromised", "ring_id": -1})
+
     # Collusion rings
     for r in range(n_collusion_rings):
         size = int(rng.integers(ring_size_min, ring_size_max + 1))
@@ -353,6 +416,7 @@ def main() -> None:
     p.add_argument("--n_agent_arb", type=int, default=40)
     p.add_argument("--n_agent_payment", type=int, default=40)
     p.add_argument("--n_agent_compromised", type=int, default=10)
+    p.add_argument("--n_prompt_injected", type=int, default=5)
     p.add_argument("--n_collusion_rings", type=int, default=2)
     p.add_argument("--hours", type=float, default=24.0)
     p.add_argument("--seed", type=int, default=42)
@@ -364,6 +428,7 @@ def main() -> None:
         n_agent_arb=args.n_agent_arb,
         n_agent_payment=args.n_agent_payment,
         n_agent_compromised=args.n_agent_compromised,
+        n_prompt_injected=args.n_prompt_injected,
         n_collusion_rings=args.n_collusion_rings,
         duration_hours=args.hours,
         seed=args.seed,
