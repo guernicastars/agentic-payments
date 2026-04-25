@@ -53,9 +53,18 @@ results/tables/*
 *.png
 *.pdf
 !memos/**/*.png
+!memos/**/*.pdf
 !results/figures/trend.png
 !results/figures/real_umap.png
 !results/figures/headline.png
+
+# LaTeX build artefacts (cofounder's methodology memo)
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
 
 .pytest_cache/
 .ruff_cache/

@@ -243,7 +243,7 @@ def test_combined_loads():
 
 After running on Saturday, append:
 
-- **`memos/13_snapshot_findings.md`** — what the 4-point trend actually shows. Templates:
+- **`memos/16_snapshot_findings.md`** — what the 4-point trend actually shows. Templates:
   > Unique agent wallets: X → Y (Nx growth).
   > Average transaction size: X → Y (compression to micro-payments).
   > Counterparty diversity: X → Y (concentration on top API providers).

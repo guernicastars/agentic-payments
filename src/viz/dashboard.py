@@ -32,7 +32,6 @@ REAL_PATHS = {
     "embedding": DATA / "processed" / "real_x402_embedding.parquet",
 }
 
-SNAPSHOTS_PATH = DATA / "raw" / "base_snapshots.parquet"
 
 TIER_ORDER = ["critical", "high", "medium", "low", "unknown"]
 TIER_COLORS = {
@@ -698,14 +697,14 @@ def render_tabs(data: dict[str, pd.DataFrame], dataset: str) -> None:
     with trend:
         from src.viz.trend import load_or_locked, trend_figure_plotly
 
-        agg, is_live = load_or_locked(SNAPSHOTS_PATH)
+        agg, is_live = load_or_locked()
         st.subheader("Agent payment behaviour: Jun 2025 → Apr 2026")
         if is_live:
-            st.caption("Live aggregation from `data/raw/base_snapshots.parquet`.")
+            st.caption("Live aggregation from `data/raw/x402_snapshot_*.parquet` (cofounder's Dune pull).")
         else:
             st.caption(
-                "Locked numbers from memo 13 (`memos/13_snapshot_findings.md`). "
-                "Falls back to live snapshots once `data/raw/base_snapshots.parquet` is committed."
+                "Locked numbers from memo 16 (`memos/16_snapshot_findings.md`). "
+                "Falls back to live snapshots once `data/raw/x402_snapshot_*.parquet` files exist."
             )
         st.plotly_chart(trend_figure_plotly(agg), width="stretch")
         st.dataframe(

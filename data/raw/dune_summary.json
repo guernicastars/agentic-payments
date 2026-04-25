@@ -1,0 +1,36 @@
+{
+  "snapshots": {
+    "early_adopters": {
+      "execution_id": "01KQ23XRJW0G3W98029RMBA2CR",
+      "key": "DUNE_API_KEY",
+      "rows": 151,
+      "datapoints": 604,
+      "exec_ms": 31322,
+      "csv": "/Users/ivrejchik/Desktop/random/dune_results/snapshot_early_adopters.csv"
+    },
+    "post_linux_fdn": {
+      "execution_id": "01KQ23YX805V7RWVWC6SEX7HC6",
+      "key": "DUNE_API_KEY",
+      "rows": 89,
+      "datapoints": 356,
+      "exec_ms": 5807,
+      "csv": "/Users/ivrejchik/Desktop/random/dune_results/snapshot_post_linux_fdn.csv"
+    },
+    "post_stripe": {
+      "execution_id": "01KQ23Z843WMWQ1HV049ENP5BE",
+      "key": "DUNE_API_KEY",
+      "rows": 351,
+      "datapoints": 1404,
+      "exec_ms": 1356,
+      "csv": "/Users/ivrejchik/Desktop/random/dune_results/snapshot_post_stripe.csv"
+    },
+    "current": {
+      "execution_id": "01KQ23ZE118SMG9Z3XTX6VK24Y",
+      "key": "DUNE_API_KEY",
+      "rows": 400,
+      "datapoints": 1600,
+      "exec_ms": 1682,
+      "csv": "/Users/ivrejchik/Desktop/random/dune_results/snapshot_current.csv"
+    }
+  }
+}

@@ -116,10 +116,10 @@ def test_ingest_uses_signer_not_facilitator() -> None:
 
 
 def test_trend_locked_numbers_render() -> None:
-    """The trend tab must render even before snapshots parquet exists."""
-    from src.viz.trend import LOCKED_NUMBERS, load_or_locked, trend_figure_plotly
+    """The trend tab must render even before snapshot parquets exist."""
+    from src.viz.trend import load_or_locked, trend_figure_plotly
 
-    agg, is_live = load_or_locked("data/raw/__nonexistent__.parquet")
+    agg, is_live = load_or_locked({"early_adopters": Path("/__missing__.parquet")})
     assert is_live is False
     assert len(agg) == 3
     assert {"date_label", "median_tx_usd", "unique_payers"}.issubset(agg.columns)
@@ -128,22 +128,36 @@ def test_trend_locked_numbers_render() -> None:
 
 
 def test_trend_aggregates_live_snapshots(tmp_path: Path) -> None:
-    """When a snapshots parquet with the `snapshot` column exists, aggregate it."""
-    from src.viz.trend import aggregate_snapshots, load_or_locked
+    """When per-snapshot parquets exist (cofounder's pull_dune.py output), aggregate them.
 
-    df = pd.DataFrame([
-        {"snapshot": "early_adopters", "from_addr": f"0x{i:040x}", "to_addr": "0xa" * 40, "value_usd": 0.1, "block_time_s": float(i)}
-        for i in range(10)
-    ] + [
-        {"snapshot": "current", "from_addr": f"0x{i:040x}", "to_addr": "0xb" * 40, "value_usd": 0.001, "block_time_s": float(i)}
-        for i in range(20)
-    ])
-    snap_path = tmp_path / "base_snapshots.parquet"
-    df.to_parquet(snap_path, index=False)
-    agg, is_live = load_or_locked(snap_path)
-    assert is_live is True
-    assert len(agg) == 2
+    Schema: block_time, payer, merchant, value_usd. Oct snapshot is excluded from
+    the headline trend by EXCLUDED_FROM_TREND.
+    """
+    from src.viz.trend import aggregate_from_files
+
+    paths = {}
+    for label, n, val in [
+        ("early_adopters", 10, 0.1),
+        ("post_linux_fdn", 89, 108.0),  # excluded
+        ("post_stripe", 15, 0.01),
+        ("current", 20, 0.001),
+    ]:
+        df = pd.DataFrame([
+            {"block_time": pd.Timestamp("2026-04-24"), "payer": f"0x{i:040x}", "merchant": "0xa" * 40, "value_usd": val}
+            for i in range(n)
+        ])
+        p = tmp_path / f"snap_{label}.parquet"
+        df.to_parquet(p, index=False)
+        paths[label] = p
+
+    agg = aggregate_from_files(paths)
+    assert len(agg) == 3  # Oct excluded
+    assert "post_linux_fdn" not in set(agg["snapshot"])
     assert agg.loc[agg["snapshot"] == "current", "tx_count"].iloc[0] == 20
+
+    agg_all = aggregate_from_files(paths, include_excluded=True)
+    assert len(agg_all) == 4
+    assert "post_linux_fdn" in set(agg_all["snapshot"])
 
 
 def test_ingest_loads_jsonl(tmp_path: Path) -> None:

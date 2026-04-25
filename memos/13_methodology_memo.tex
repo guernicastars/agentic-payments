@@ -1,0 +1,735 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  citecolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\setlist[itemize]{topsep=3pt,itemsep=2pt,leftmargin=1.4em}
+\setlist[enumerate]{topsep=3pt,itemsep=2pt,leftmargin=1.7em}
+
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\risk}{\operatorname{risk}}
+
+\title{\textbf{Methodology Memo}\\
+\large Behavioural Risk Intelligence for Agentic Payments}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This memo explains the fraud-detection methodology behind the current
+\code{agentic-payments} prototype.  It surveys how fraud detection is
+typically done in Web2 payments, ecommerce, and digital banking; identifies
+which ideas transfer to agentic payment rails; and specifies the exact
+feature, clustering, scoring, explanation, and evaluation methods implemented
+in the repository.  The central claim is that agentic payment risk is primarily
+a statistical and graph-learning problem, not a large-language-model problem:
+agents leave machine-shaped behavioural fingerprints in timing, gas
+optimization, method calls, counterparties, and coordination structure.
+\end{abstract}
+
+\section{Executive Summary}
+
+Modern fraud systems combine four ingredients: (i) dense event data, (ii)
+behavioural features, (iii) supervised or semi-supervised risk models, and
+(iv) an operational decision layer for review, step-up verification, blocking,
+or liability shift.  Stripe Radar, Shopify Fraud Analysis/Protect, Riskified,
+Sift, Forter, Sardine, Monzo, and Revolut differ in surface area, but they all
+converge on that architecture: real-time scoring, network effects, rules plus
+machine learning, explainability for analysts, and feedback loops from
+chargebacks or confirmed fraud.
+
+Agentic payments preserve this structure but change the signal.  Human-centric
+features such as browser fingerprints, shipping address mismatch, CVC checks,
+email reputation, device biometrics, and human time-of-day patterns become
+weaker or unavailable.  New agentic features become available: inter-arrival
+regularity, 24-hour uniformity, gas-to-basefee tightness, repeated calldata,
+contract/method concentration, late counterparty drift, and wallet-to-wallet
+coordination.  Because labels are initially sparse, the first product should
+not pretend to be a fully supervised fraud classifier.  It should be a
+behavioural risk intelligence layer: rank anomalous wallets, explain the
+signals, surface coordinated clusters, and improve as real labels arrive.
+
+The repository currently implements:
+
+\begin{itemize}
+  \item A synthetic labelled data generator for humans, deterministic agents,
+        payment bots, compromised agents, and collusion rings.
+  \item A public x402/Base data collector and decoder for EIP-3009-style USDC
+        \code{transferWithAuthorization} settlements.
+  \item A 36-feature behavioural fingerprint per payer wallet.
+  \item Pairwise wallet clustering using counterparty overlap, method
+        agreement, and timing co-movement.
+  \item An eight-factor composite score calibrated against a low-volume
+        baseline, mapped to risk tiers with human-readable explanations.
+  \item A dashboard that presents triage, evidence, behaviour maps, and
+        coordination rather than just a scatterplot.
+\end{itemize}
+
+\section{What Fraud Detection Looks Like in Web2}
+
+\subsection{Recurring Structure}
+
+The fraud literature has been consistent for two decades: fraud is rare,
+adaptive, adversarial, and operationally asymmetric.  Bolton and Hand's classic
+review frames statistical fraud detection as the fallback once prevention
+fails, and emphasizes that fraudsters adapt to controls over time
+\cite{bolton2002}.  Ngai et al. classify financial fraud detection work around
+data mining families such as classification, clustering, outlier detection,
+regression, visualization, and social-network analysis \cite{ngai2011}.
+Later credit-card fraud work stresses feature engineering, class imbalance,
+delayed labels, and concept drift \cite{bahnsen2016,dalpozzolo2015,carcillo2018}.
+
+In production systems, the common architecture is:
+
+\begin{enumerate}
+  \item \textbf{Event capture:} payment, account, device, browser, network,
+        order, chargeback, customer-service, and identity events.
+  \item \textbf{Feature computation:} real-time, near-real-time, and batch
+        aggregations at transaction, account, device, card, merchant, and
+        counterparty levels.
+  \item \textbf{Decisioning:} rules, supervised models, anomaly detectors,
+        graph/link analysis, and risk thresholds.
+  \item \textbf{Action layer:} allow, review, challenge, step-up verification,
+        block, reserve funds, cancel order, or reimburse/guarantee merchant.
+  \item \textbf{Feedback loop:} chargebacks, dispute outcomes, manual review
+        decisions, confirmed scams, law-enforcement alerts, and analyst labels.
+\end{enumerate}
+
+\subsection{Stripe Radar}
+
+Stripe Radar is the closest Web2 analogue to our intended product.  Stripe
+documents risk evaluation as a machine-learning score and risk level for each
+payment.  Radar for Fraud Teams exposes a 0--99 risk score, with default
+thresholds around 65 for elevated risk and 75 for high risk \cite{stripeRisk}.
+Radar risk insights describe an adaptive AI model that uses hundreds of
+signals and data across Stripe's business network, and exposes some explanatory
+signals to analysts \cite{stripeInsights}.  Radar rules then let merchants
+block or review payments according to score, risk level, CVC/AVS checks, and
+custom predicates \cite{stripeRules}.  Radar for Platforms extends the same
+logic from transaction fraud to connected-account risk: machine-learning risk
+scores, customized rules, analyst investigation, document/selfie verification,
+and actions such as reserves \cite{stripePlatforms}.
+
+\textbf{Methodological lesson:} the product is not ``a model.''  It is a
+risk operating system: score, explain, rule, review, and act.  Our dashboard
+should therefore show queue, reason, action, and feedback hooks, not merely an
+embedding plot.
+
+\subsection{Shopify Fraud Analysis and Protect}
+
+Shopify's fraud analysis gives order-level fraud recommendations and indicators
+for online card orders, and its documentation states that the recommendations
+are powered by machine-learning algorithms trained on historical transactions
+across Shopify stores \cite{shopifyFraud}.  Shopify Protect adds a business
+model layer: for eligible Shop Pay transactions, Shopify can cover protected
+fraudulent/unrecognized chargebacks and manage the dispute process
+\cite{shopifyProtect}.
+
+\textbf{Methodological lesson:} ecommerce fraud systems are not just score
+providers; they change merchant behaviour by saying which orders are safe to
+fulfil, which require verification, and where liability sits.  Our equivalent
+actions are: allow, monitor, step-up auth, throttle/sandbox agent, freeze, or
+submit dispute/AML evidence.
+
+\subsection{Chargeback-Guarantee and Risk-Network Vendors}
+
+Riskified describes real-time approve/decline decisions from machine-learning
+models over hundreds of transaction features, a merchant network with over a
+billion historical transactions, and an aligned-incentive chargeback guarantee
+\cite{riskifiedGuarantee}.  Its product pages emphasize data collection,
+device/browser behavioural insight, merchant-network linking, and explainable
+machine learning \cite{riskifiedSolutions}.  Sift advertises a global data
+network of roughly one trillion annual events, hundreds of brands, rulesets,
+and split-second decisioning \cite{sift}.  Forter emphasizes identity
+protection and a global identity graph across more than a billion online
+identities \cite{forter}.  Sardine combines consortium data, supervised ML,
+device intelligence, behaviour biometrics, graph connections, rules, and case
+management \cite{sardineDocs,sardineHome}.
+
+\textbf{Methodological lesson:} the defensible asset is a labelled network of
+behaviour, not a one-off classifier.  Our wedge should start with wallet-level
+behavioural features and grow into an agent reputation graph.
+
+\subsection{Digital Banks and Real-Time Payment Fraud}
+
+Digital banks make the latency problem explicit.  Monzo's fraud platform
+separates feature computation from control execution, uses just-in-time,
+near-real-time, and batch features, and records control metadata to measure
+effectiveness and false positives \cite{monzoReactive}.  Monzo's ML stack also
+emphasizes reusable feature engineering and feature monitoring
+\cite{monzoML}.  Revolut's scam-detection feature uses machine learning to
+detect likely scam payments, decline high-risk payments, send users through an
+intervention flow, ask additional questions, and escalate to fraud specialists
+\cite{revolutScam}.
+
+\textbf{Methodological lesson:} risk models should be measured as controls on a
+payment hot path.  The key product metrics are not only AUC or accuracy, but
+latency, recall at tolerable false-positive rate, false-positive cost,
+queue volume, and loss prevented.
+
+\section{Why Agentic Payments Are Different}
+
+Agentic payments are not merely card payments with a new front end.  Protocols
+such as x402 make payments HTTP-native and machine-executable.  Coinbase's
+documentation describes facilitators that verify signed payment payloads and
+settle them on-chain, with hosted support for stablecoin payments and EIP-3009
+compatible tokens on Base/Polygon and SPL tokens on Solana \cite{x402Facilitator}.
+x402's flow lets a server respond with HTTP 402, the client resubmit with a
+payment payload, and a facilitator verify and settle before the server returns
+the requested resource \cite{x402How}.  This yields a new machine-to-machine
+payment substrate.
+
+The fraud signal changes in four ways:
+
+\begin{enumerate}
+  \item \textbf{Human context weakens.} Many Web2 signals -- browser history,
+        shipping address, email reputation, human typing patterns, and
+        shopper/customer-service history -- are less relevant for autonomous
+        agents.
+  \item \textbf{Machine regularity strengthens.} Agents are more likely to
+        transact at high frequency, on cron-like intervals, across all hours,
+        with repeated method selectors and narrow value bands.
+  \item \textbf{On-chain settlement exposes execution details.} On Base/x402
+        we can see facilitator/signer addresses, USDC contract calls,
+        calldata method selectors, gas used, gas price, payer, recipient, and
+        settlement time.
+  \item \textbf{Risk propagates through agent networks.} Compromised agents
+        can call other agents, APIs, wallets, or merchants.  This motivates
+        graph and cascade methods rather than purely per-transaction scoring.
+\end{enumerate}
+
+Therefore the product should begin as \emph{behavioural risk intelligence for
+agent traffic}: wallet fingerprints, anomaly factors, coordination clusters,
+and interpretable triage.  Fully supervised fraud labels can arrive later via
+chargebacks, confirmed compromised wallets, facilitator declines, AML alerts,
+merchant disputes, and manual analyst review.
+
+\section{Data Model}
+
+\subsection{Canonical Transaction Row}
+
+The repository standardizes both synthetic and real x402 data to the following
+schema:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Field & Meaning \\
+\midrule
+\code{block_time_s} & Seconds from window start \\
+\code{block_time} & Timestamp when available \\
+\code{from_addr} & Payer wallet, agent wallet, or synthetic user wallet \\
+\code{to_addr} & Recipient, merchant, contract, or counterparty \\
+\code{value_usd} & Transaction value normalized to USD/USDC units \\
+\code{gas_used} & Execution gas used \\
+\code{gas_price_gwei} & Gas price converted to gwei \\
+\code{method_id} & EVM function selector, e.g. \code{0xe3ee160e} \\
+\code{success} & Boolean transaction success flag \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Synthetic data additionally has ground-truth labels:
+\code{human_random}, \code{agent_arb_deterministic}, \code{agent_payment_bot},
+\code{agent_compromised}, and \code{collusion_ring}.  Public x402/Base data is
+decoded from facilitator/signer transactions to Base USDC.  In the current
+pull, we normalize 7,512 facilitator-address transactions, decode 437
+x402/EIP-3009 USDC payment rows, and score 116 payer wallets.
+
+\subsection{Why Synthetic Data Is Legitimate Here}
+
+Synthetic data is not evidence that real fraud exists.  It is a controlled
+instrumentation test.  We need to know whether the pipeline can recover known
+policies:
+
+\begin{itemize}
+  \item Humans: sparse, diurnal, heterogeneous values and counterparties.
+  \item Deterministic agents: periodic, 24-hour, gas-tight, low method entropy.
+  \item Payment bots: bursty but consistent recipients and transfer methods.
+  \item Compromised agents: late drift to new counterparties and higher burst
+        rate/value changes.
+  \item Collusion rings: multiple wallets transacting with the same target in
+        tight time windows.
+\end{itemize}
+
+The public x402 overlay then answers a separate question: does the schema and
+feature machinery work on real settlement data?
+
+\section{Feature Engineering}
+
+For every wallet \(w\), let \(T_w=\{t_1,\ldots,t_n\}\) be sorted transaction
+times, \(C_w\) counterparties, \(M_w\) method selectors, \(V_w\) values, and
+\(G_w\) gas observations.  We compute 36 features in six families.
+
+\subsection{Temporal Features}
+
+Inter-arrival times are
+\[
+  \Delta_i = t_i - t_{i-1}, \quad i=2,\ldots,n.
+\]
+The coefficient of variation is
+\[
+  \mathrm{CV}_\Delta(w)=
+  \frac{\operatorname{std}(\Delta)}{\operatorname{mean}(\Delta)+\epsilon}.
+\]
+Near-zero values are cron-like; values near one resemble Poisson-like
+arrival; large values indicate burst/drift behaviour.  We also compute
+Shannon entropy of log-binned inter-arrivals:
+\[
+  H(\Delta)=-\sum_b p_b \log_2 p_b.
+\]
+Time-of-day uniformity is measured as a Kolmogorov--Smirnov distance between
+the empirical hour-of-day CDF and a uniform 24-hour CDF:
+\[
+  D_{\mathrm{uniform}}(w)=\sup_h |F_w(h)-F_U(h)|.
+\]
+Low \(D_{\mathrm{uniform}}\) is suspicious for agents because always-on agents
+can cover the full day evenly; humans tend to be diurnal.  We also keep a
+KL-divergence from a canonical human time-of-day curve.
+
+Burstiness follows Goh and Barabasi's coefficient:
+\[
+  B(w)=\frac{\sigma_\Delta-\mu_\Delta}{\sigma_\Delta+\mu_\Delta+\epsilon}.
+\]
+
+\subsection{Gas and Optimization Features}
+
+Agents are expected to optimize execution more tightly than humans.  We compute
+mean and standard deviation of gas price, gas-to-basefee ratio, gas-used
+coefficient of variation, and a simple optimization score:
+\[
+  \mathrm{gas\_opt}(w)=
+  \frac{1}{1+\operatorname{std}(g/\mathrm{basefee})+\mathrm{CV}(\mathrm{gas\_used})}.
+\]
+In synthetic data basefee is simulated; in real Base data, gas price and gas
+used are directly pulled from Blockscout.
+
+\subsection{Value, Counterparty, and Method Features}
+
+Value features include mean, median, standard deviation, log-standard
+deviation, entropy, and the share of transactions above the population 95th
+percentile.  Counterparty features include number of unique counterparties,
+top-1 and top-3 concentration, entropy, repeat rate, and late-new-counterparty
+share:
+\[
+  \mathrm{late\_new}(w)=
+  \frac{\#\{ \text{transactions in final quartile to previously unseen } c\}}
+       {\#\{\text{transactions}\}}.
+\]
+This is the primary compromised-agent drift signal.
+
+Method features include unique method count, dominant selector share, native
+transfer share, ERC-20 transfer share, and success rate.  Repeated calls to a
+single selector, for example USDC \code{transferWithAuthorization}, are normal
+for a payment facilitator but can still be a useful concentration feature in
+combination with timing and counterparty features.
+
+\subsection{Coordination Features}
+
+We compute the peak count in any 60-second window, burst windows per hour, mean
+inter-burst minutes, and the number of distinct partner wallets with at least
+one transaction within a 60-second window of the wallet's own transactions.
+These features are intentionally cohort-dependent: they identify wallets whose
+behaviour is anomalous relative to the other wallets in the same observed
+window.
+
+\section{Wallet Coordination Graph}
+
+For each wallet \(w\), define a profile
+\[
+  P_w = \{(c,m,t): \text{wallet } w \text{ called counterparty } c
+          \text{ with method } m \text{ at time } t\}.
+\]
+For wallet pair \((i,j)\), compute:
+
+\begin{align*}
+O_{ij} &= \frac{|C_i\cap C_j|}{|C_i\cup C_j|},\\
+M_{ij} &= \frac{1}{|C_i\cap C_j|}\sum_{c\in C_i\cap C_j}
+          \mathbf{1}\{M_i(c)\cap M_j(c)\neq \varnothing\},\\
+T_{ij} &= \frac{\#\{(t_i,t_j): |t_i-t_j|\leq 60s,\ c_i=c_j\}}
+              {\#\{(t_i,t_j): c_i=c_j\}}.
+\end{align*}
+
+The composite similarity is
+\[
+  S_{ij}=0.3O_{ij}+0.4M_{ij}+0.3T_{ij}.
+\]
+An edge is created when \(O_{ij}\geq 0.10\) and \(S_{ij}\geq 0.40\).  Connected
+components with at least two connected wallets form coordination clusters.
+The pairwise loop is capped at the top 500 wallets by transaction count to keep
+the hackathon implementation tractable.
+
+This mirrors the Polymarket wallet clusterer, replacing market overlap and
+direction agreement with counterparty overlap and method agreement.
+
+\section{Composite Risk Score}
+
+\subsection{Baseline Calibration}
+
+Because labels are sparse in real x402 data, we use a low-volume baseline as a
+proxy for ordinary human/low-automation behaviour:
+\[
+  B=\{w: \mathrm{tx\_count}(w)\leq Q_{0.30}(\mathrm{tx\_count})\}.
+\]
+For feature \(x\), define baseline z-score:
+\[
+  z_x(w)=\frac{x(w)-\mu_B(x)}{\sigma_B(x)+\epsilon}.
+\]
+
+Some factors are suspicious when high; others are suspicious when low.  We map
+z-scores to a 0--100 one-sided suspicion score:
+\[
+  q_{\mathrm{high}}(z)=
+  100\cdot \frac{1}{1+\exp(-1.5(z-1))},
+  \quad
+  q_{\mathrm{low}}(z)=q_{\mathrm{high}}(-z).
+\]
+The shift by one standard deviation keeps baseline observations below the
+medium-risk threshold and makes high scores require genuine tail behaviour.
+
+\subsection{Eight Factors and Weights}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Factor & Direction & Weight \\
+\midrule
+Inter-arrival anomaly & large deviation from baseline median & 0.15 \\
+Time-of-day uniformity & unusually uniform, low KS & 0.15 \\
+Gas tightness & unusually low gas variance & 0.20 \\
+Counterparty concentration & high top-1 share with volume & 0.10 \\
+Method concentration & high top selector share with volume & 0.05 \\
+Burst intensity & high bursts per hour & 0.10 \\
+Drift signal & high late-new-counterparty share & 0.10 \\
+Coordination & high partner count in short windows & 0.15 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The composite score is
+\[
+  \risk(w)=
+  \operatorname{clip}_{[0,100]}\left(
+    \sum_{k=1}^{8}\alpha_k q_k(w)
+  \right).
+\]
+Risk tiers are:
+\[
+  \text{critical}\geq 75,\quad
+  \text{high}\geq 50,\quad
+  \text{medium}\geq 25,\quad
+  \text{low}<25.
+\]
+
+This follows the production pattern used by Radar-like tools: scalar score,
+risk tier, rule/action layer, and analyst explanation.
+
+\subsection{Explanations}
+
+For each wallet, we sort the eight factor scores and generate a short
+explanation from the top three.  Examples:
+
+\begin{itemize}
+  \item ``inter-arrival CV 0.05 (cron); 100\% calls to one selector; 36\%
+        volume to single counterparty.''
+  \item ``inter-arrival CV 1.45 (bursty); 98\% volume to single counterparty;
+        100\% calls to one selector.''
+\end{itemize}
+
+This deliberately mirrors Web2 risk insights: the model should not simply
+declare a wallet risky; it should say what behavioural facts drove the score.
+
+\section{Embedding and Dashboard}
+
+The embedding is not the primary detector.  It is an analyst visualization.
+We standardize numeric features and project them to two dimensions with UMAP,
+falling back to PCA if UMAP is unavailable.  The dashboard now leads with a
+triage queue and selected-case evidence, then offers the embedding as a
+behaviour map.  This follows the Polymarket dashboard pattern: overview cards,
+ranked tables, badges, tabs, factor bars, and evidence before visualization.
+
+\section{Current Results}
+
+\subsection{Synthetic Stress Test}
+
+The synthetic run has 52,162 transactions and 188 wallet rows.  The current
+calibration flags deterministic arbitrage agents and collusion rings as high
+risk, catches most compromised agents, and keeps human wallets out of the
+high-risk queue.  This validates that the pipeline can recover the behaviours
+it is designed to detect.
+
+\subsection{Public x402/Base Overlay}
+
+The no-key public data collector currently pulls:
+
+\begin{itemize}
+  \item 24 facilitators from x402.watch.
+  \item 43 x402-related addresses/signers.
+  \item 7,512 Base facilitator-address transactions.
+  \item 437 decoded x402/EIP-3009 USDC payment rows.
+  \item 116 payer wallets and 19 recipient wallets.
+\end{itemize}
+
+The public x402 payer-wallet scorer currently returns 65 medium-risk wallets,
+51 low-risk wallets, and no high-risk claims.  This is an important honest
+result: the real public slice is usable, but small and weakly labelled.  It
+should be presented as a real-data overlay, not as proof of fraud.
+
+\section{Why These Methods, Not an LLM Classifier?}
+
+LLMs are useful for analyst summaries, documentation, and case narratives.  The
+core fraud decision should be statistical and graph-based because:
+
+\begin{itemize}
+  \item Fraud decisions require stable calibration and measurable false-positive
+        rates.
+  \item Payment risk depends on structured features and temporal/graph context.
+  \item Regulators, merchants, and banks need explanations grounded in observed
+        facts.
+  \item New fraud modes produce drift and adversarial adaptation; feature and
+        graph monitoring are easier to audit than generative outputs.
+\end{itemize}
+
+Future versions may use LLMs to generate analyst-readable case summaries, but
+the score should remain feature-grounded.
+
+\section{Evaluation Plan}
+
+The evaluation should mature in four stages:
+
+\begin{enumerate}
+  \item \textbf{Synthetic recovery:} policy-level precision/recall for known
+        deterministic agents, compromised agents, humans, and collusion rings.
+  \item \textbf{Real overlay sanity checks:} distribution of x402 features,
+        duplicate/failed settlements, top recipients, facilitator drift, and
+        stability of score thresholds over time.
+  \item \textbf{Weak labels:} Forta alerts, sanctioned/high-risk address lists,
+        facilitator KYT declines, merchant disputes, and manually verified
+        suspicious wallets.
+  \item \textbf{Supervised calibration:} cost-sensitive models, precision-recall
+        curves, temporal holdouts, delayed-label handling, and active learning
+        for analyst review.
+\end{enumerate}
+
+Metrics should include precision at queue size, recall at fixed false-positive
+rate, expected loss avoided, review burden, latency, and threshold stability.
+For real-time deployment, the relevant comparison is not only model AUC but
+whether a control can safely run on the payment path.
+
+\section{Future Model Roadmap}
+
+\begin{enumerate}
+  \item \textbf{Feature store:} separate just-in-time features from
+        near-real-time and batch aggregates, following the pattern used in
+        digital-bank fraud systems.
+  \item \textbf{Graph model:} build a wallet--recipient--facilitator graph and
+        use graph embeddings or GNNs once labels exist.  CARE-GNN and related
+        camouflage-resistant methods are relevant because fraudsters adapt both
+        attributes and edges \cite{caregnn}.  Blockchain AML work on Elliptic
+        datasets demonstrates the utility of temporal transaction graphs
+        \cite{ellipticGcn,elliptic2}.
+  \item \textbf{Reputation layer:} convert wallet risk into portable agent,
+        facilitator, merchant, and counterparty reputation signals.
+  \item \textbf{Decision policies:} map tiers to concrete actions: allow,
+        monitor, step-up authorization, rate-limit, sandbox agent, freeze,
+        request identity/delegation proof, or create dispute/AML evidence.
+  \item \textbf{Feedback loop:} store analyst decisions and post-event labels
+        so the model compounds data advantage over time.
+\end{enumerate}
+
+\section{Limitations}
+
+\begin{itemize}
+  \item The synthetic labels are useful for pipeline validation but not proof of
+        real-world fraud.
+  \item The public x402 data pull is small and weakly labelled; no high-risk
+        claim should be made from it yet.
+  \item The low-volume baseline is a pragmatic proxy, not a guaranteed human
+        baseline.
+  \item Gas features need chain-specific normalization when moving beyond Base.
+  \item Counterparty concentration can be benign for legitimate API/payment
+        agents; it is only suspicious in combination with timing, drift, gas,
+        and coordination.
+  \item A production system needs delayed-label handling, threshold governance,
+        monitoring, and analyst feedback.
+\end{itemize}
+
+\section{Implementation Map}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Method & Repository path \\
+\midrule
+Synthetic policy generator & \code{src/ingest/synthetic.py} \\
+Public x402 collector/decoder & \code{src/ingest/public_x402.py} \\
+Behavioural features & \code{src/features/fingerprint.py} \\
+Wallet clustering & \code{src/models/cluster.py} \\
+Composite scoring & \code{src/models/score.py} \\
+Embedding & \code{src/viz/embed.py} \\
+Demo dashboard & \code{src/viz/dashboard.py} \\
+Synthetic pipeline & \code{src/pipeline.py} \\
+Public x402 pipeline & \code{src/pipeline_public.py} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{thebibliography}{99}
+
+\bibitem{bolton2002}
+Richard J. Bolton and David J. Hand.
+\newblock Statistical Fraud Detection: A Review.
+\newblock \emph{Statistical Science}, 17(3):235--255, 2002.
+\newblock \url{https://projecteuclid.org/journals/statistical-science/volume-17/issue-3/Statistical-Fraud-Detection-A-Review/10.1214/ss/1042727940.pdf}
+
+\bibitem{ngai2011}
+E. W. T. Ngai, Yong Hu, Y. H. Wong, Yijun Chen, and Xin Sun.
+\newblock The application of data mining techniques in financial fraud detection: A classification framework and an academic review of literature.
+\newblock \emph{Decision Support Systems}, 50(3):559--569, 2011.
+\newblock \url{https://doi.org/10.1016/j.dss.2010.08.006}
+
+\bibitem{bahnsen2016}
+Alejandro Correa Bahnsen, Djamila Aouada, Aleksandar Stojanovic, and Bjoern Ottersten.
+\newblock Feature Engineering Strategies for Credit Card Fraud Detection.
+\newblock \emph{Expert Systems with Applications}, 51:134--142, 2016.
+\newblock \url{https://doi.org/10.1016/j.eswa.2015.12.030}
+
+\bibitem{dalpozzolo2015}
+Andrea Dal Pozzolo, Olivier Caelen, Reid A. Johnson, and Gianluca Bontempi.
+\newblock Calibrating Probability with Undersampling for Unbalanced Classification.
+\newblock IEEE Symposium Series on Computational Intelligence, 2015.
+\newblock \url{https://doi.org/10.1109/SSCI.2015.33}
+
+\bibitem{carcillo2018}
+Fabrizio Carcillo, Andrea Dal Pozzolo, Yann-Ael Le Borgne, Olivier Caelen,
+Yannis Mazzer, and Gianluca Bontempi.
+\newblock Streaming active learning strategies for real-life credit card fraud detection.
+\newblock \emph{International Journal of Data Science and Analytics}, 5:285--300, 2018.
+\newblock \url{https://link.springer.com/article/10.1007/s41060-018-0116-z}
+
+\bibitem{stripeRisk}
+Stripe Documentation.
+\newblock Risk evaluation: risk score and risk outcomes.
+\newblock \url{https://docs.stripe.com/radar/risk-evaluation}
+
+\bibitem{stripeInsights}
+Stripe Documentation.
+\newblock Risk insights.
+\newblock \url{https://docs.stripe.com/radar/reviews/risk-insights}
+
+\bibitem{stripeRules}
+Stripe Documentation.
+\newblock Fraud prevention rules.
+\newblock \url{https://docs.stripe.com/radar/rules}
+
+\bibitem{stripePlatforms}
+Stripe Documentation.
+\newblock Radar for Platforms.
+\newblock \url{https://docs.stripe.com/connect/risk-management/risk-tooling}
+
+\bibitem{shopifyFraud}
+Shopify Help Center.
+\newblock Fraud analysis.
+\newblock \url{https://help.shopify.com/en/manual/orders/fraud-analysis}
+
+\bibitem{shopifyProtect}
+Shopify.
+\newblock Shopify Protect.
+\newblock \url{https://www.shopify.com/protect}
+
+\bibitem{riskifiedGuarantee}
+Riskified.
+\newblock Chargeback Guarantee and Fraud Protection.
+\newblock \url{https://www.riskified.com/chargeback-guarantee/}
+
+\bibitem{riskifiedSolutions}
+Riskified.
+\newblock Ecommerce fraud prevention solutions.
+\newblock \url{https://www.riskified.com/fraud/prevention-solutions/}
+
+\bibitem{sift}
+Sift.
+\newblock Digital Fraud Prevention and Risk-Based Authentication.
+\newblock \url{https://sift.com/}
+
+\bibitem{forter}
+Forter.
+\newblock Account Protection.
+\newblock \url{https://www.forter.com/platform/identity-protection/}
+
+\bibitem{sardineDocs}
+Sardine Documentation.
+\newblock What Powers Sardine.
+\newblock \url{https://docs.sardine.ai/guides/public/gettingstarted/whatpowerssardine}
+
+\bibitem{sardineHome}
+Sardine.
+\newblock Agentic Financial Crime Platform for Fraud Prevention and AML.
+\newblock \url{https://www.sardine.ai/}
+
+\bibitem{monzoReactive}
+Monzo.
+\newblock Building a reactive Fraud Prevention Platform.
+\newblock \url{https://monzo.com/blog/build-a-reactive-fraud-prevention-platform}
+
+\bibitem{monzoML}
+Monzo.
+\newblock Monzo's machine learning stack.
+\newblock \url{https://monzo.com/blog/2022/04/26/monzos-machine-learning-stack}
+
+\bibitem{revolutScam}
+Revolut.
+\newblock Revolut launches AI feature to protect customers from card scams.
+\newblock \url{https://www.revolut.com/en-US/news/revolut_launches_ai_feature_to_protect_customers_from_card_scams_and_break_the_scammers_spell/}
+
+\bibitem{x402Facilitator}
+Coinbase Developer Platform.
+\newblock x402 Facilitator.
+\newblock \url{https://docs.cdp.coinbase.com/x402/core-concepts/facilitator}
+
+\bibitem{x402How}
+Coinbase Developer Platform.
+\newblock How x402 Works.
+\newblock \url{https://docs.cdp.coinbase.com/x402/core-concepts/how-it-works}
+
+\bibitem{caregnn}
+Yingtong Dou, Zhiwei Liu, Li Sun, Yuening Deng, Hao Peng, and Philip S. Yu.
+\newblock Enhancing Graph Neural Network-based Fraud Detectors against Camouflaged Fraudsters.
+\newblock CIKM, 2020.
+\newblock \url{https://arxiv.org/abs/2008.08692}
+
+\bibitem{ellipticGcn}
+Mark Weber et al.
+\newblock Anti-Money Laundering in Bitcoin: Experimenting with Graph Convolutional Networks for Financial Forensics.
+\newblock KDD Workshop on Anomaly Detection in Finance, 2019.
+\newblock \url{https://arxiv.org/abs/1908.02591}
+
+\bibitem{elliptic2}
+Elliptic, MIT, and IBM researchers.
+\newblock The Shape of Money Laundering: Subgraph Representation Learning on the Blockchain with the Elliptic2 Dataset.
+\newblock 2024.
+\newblock \url{https://arxiv.org/abs/2404.19109}
+
+\end{thebibliography}
+
+\end{document}
