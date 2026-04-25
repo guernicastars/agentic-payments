@@ -1,6 +1,8 @@
-# 12 — Real-data integration plan
+# 15 — Real-data integration plan (Dune snapshots track)
 
 **Date:** 2026-04-25 (evening)
+
+> **Status:** parallel to memo 12 (`12_public_data_collection.md`, no-key live track). This memo covers the **Dune snapshots** track — the 4-point trend chart and combined demo. The cofounder's `src/ingest/public_x402.py` + `src/pipeline_public.py` already deliver D1-equivalent (live x402 traffic via x402.watch + Blockscout), so the loader.py plan below is **superseded** by their work — keep this memo as the snapshot-trend reference, not a duplicate of the live track.
 
 After running `scripts/pull_dune.py`, the repo gains three artifacts that need to land into the existing pipeline. This memo lists the minimal edits, ordered by pitch value.
 
