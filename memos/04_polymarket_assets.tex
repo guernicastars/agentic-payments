@@ -1,0 +1,66 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Polymarket assets we lift}\\
+\large Memo 04}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+\section{High-leverage code (port directly)}
+\subsubsection*{\code{polymarket/pipeline/jobs/wallet_analyzer.py} (372 LOC)}
+Pairwise wallet similarity from \code{wallet_activity} (24h window):
+
+\begin{itemize}
+  \item Timing correlation (5-min buckets)
+  \item Market overlap (Jaccard on condition\_ids)
+  \item Direction agreement (BUY/SELL alignment)
+  \item Greedy clustering: edge if \code{similarity > CLUSTER_MIN_SIMILARITY} and \code{overlap > CLUSTER_MIN_OVERLAP}
+\end{itemize}
+\textbf{Port:} replace \code{condition_id} with \code{(to_address, method_id)} tuple; replace \code{side} with \code{value_bucket}; everything else lifts. Output \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ \code{agent_clusters} table (or DataFrame for hackathon).
+
+\subsubsection*{\code{polymarket/pipeline/jobs/insider_detector.py} (901 LOC)}
+Five detection methods + composite scoring: 1. \textbf{Pre-news trading} --- trades preceding major events (skip for agents; replace with pre-known-exploit timing) 2. \textbf{Statistical anomaly} --- z-scores on per-trader metrics (trade frequency, avg size, win rate, market entropy) 3. \textbf{Profitability outliers} --- risk-adjusted returns (skip for agents v1) 4. \textbf{Coordinated trading} --- wallet groups acting within 5-min window with shared market overlap 5. \textbf{Composite suspicion} --- weighted 0--100 score with tiers: critical (\textbackslash{}\$\textbackslash{}geq\textbackslash{}\$75), high (\textbackslash{}\$\textbackslash{}geq\textbackslash{}\$50), medium (\textbackslash{}\$\textbackslash{}geq\textbackslash{}\$25), low
+
+\textbf{Port:} drop methods 1+3 (no analog yet), keep 2+4, swap features for behavioural fingerprint, keep tiering + composite score architecture verbatim.
+
+\subsubsection*{\code{polymarket/pipeline/jobs/signal_compositor.py} (380 LOC)}
+8-factor weighted composite (OBI, volume anomaly, large-trade bias, momentum, smart money, concentration, arbitrage, insider). Weights normalised to [-100, +100], clamp at end.
+
+\textbf{Port:} template. Replace 8 polymarket factors with 8 agent-specific risk factors: 1. Inter-arrival entropy anomaly 2. Gas-tightness anomaly 3. Counterparty diversity anomaly 4. Time-of-day uniformity anomaly 5. Cluster co-membership (from clusterer) 6. Method-call burstiness 7. Value-distribution entropy 8. Failed-transaction ratio
+
+\section{Heavier reuse if time permits}
+\subsubsection*{\code{polymarket/network/embedding/} (4,009 LOC)}
+\begin{itemize}
+  \item \code{model.py} --- autoencoder (32-dim bottleneck on 27 features); same shape works for our 30--50 agent features
+  \item \code{probes.py} --- linear probes with stratified-CV + permutation tests (1,000 perms, p<0.005)
+  \item \code{interpret.py} --- correlation + Jacobian attribution; "this direction = high-frequency low-value optimisation"
+  \item \code{train.py} --- full training loop
+\end{itemize}
+\textbf{Demo value:} instead of "we flagged this agent", we say "we flagged this agent, and the 3 highest-attribution dimensions are gas-optimisation tightness, counterparty diversity collapse, and time-of-day uniformity --- consistent with a compromised arbitrage agent." That sentence wins the pitch.
+
+\subsubsection*{\code{polymarket/network/signals/cascade.py} (155 LOC)}
+Cascade signal detection. Pairs with dissertation cascade-network-analysis.md.
+
+\subsubsection*{\code{polymarket/network/gnn/} (graph\_builder.py + model.py + online\_learner.py)}
+GNN over wallet-counterparty graph. Stretch goal Saturday afternoon.
+
+\section{Theoretical / narrative}
+\subsubsection*{\code{dissertation/notes/cascade-network-analysis.md}}
+SIR-style infection model on agent network with branching-process bounds + spectral vulnerability theorem. \textbf{Use one slide:} "When a compromised agent transacts with N others at infection probability p, the cascade goes critical above p\textbackslash{}\$\textbackslash{}cdot\textbackslash{}\$N > 1. We detect the precursors before criticality." This single slide differentiates us from every other team.
+
+\subsubsection*{\code{polymarket/Embedding_Interpretability_Paper.tex} (Eugene, Feb 2026)}
+Already-written published-grade interpretability methodology. Cite in pitch as credibility signal.
+
+\section{Things NOT to lift}
+\begin{itemize}
+  \item ClickHouse infrastructure --- too heavy for hackathon. Use parquet + DuckDB if needed.
+  \item Polymarket-specific signals (OBI, arbitrage scanner) --- domain-mismatched.
+  \item Discord bot, dashboards --- distraction.
+\end{itemize}
+
+\end{document}

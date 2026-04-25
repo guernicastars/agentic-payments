@@ -1,0 +1,88 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Data plan}\\
+\large Memo 05}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+\section{Primary source: Base L2 + x402}
+x402 facilitator addresses on Base are public. Coinbase Developer Platform publishes them. Pull recent transactions interacting with these facilitators \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ agent-positive class. Pull sampled regular EOAs \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ human-baseline class.
+
+\textbf{Volume target:} 100k transactions for the demo. Stablecoin transaction volume hit \textbackslash{}\$33T in 2025 (+72\% YoY); agent-driven Layer 2 spikes of 10,000\% in early 2026 --- should be plenty.
+
+\section{Cofounder action}
+Cofounder is pulling Coinbase data. Confirm format: ideally raw transaction rows with \code{(block_number, block_time, from, to, value, gas_used, gas_price, input_data_or_method_id, success)}. CSV or parquet works; JSONL OK.
+
+If Coinbase access is API-direct: \code{cdp.coinbase.com/api/v2/networks/base/transactions} style.
+
+\section{Schema we standardise on}
+\begin{lstlisting}
+columns = [
+    "block_number",   # int
+    "block_time",     # datetime UTC
+    "tx_hash",        # str
+    "from_addr",      # str (lowercased)
+    "to_addr",        # str (lowercased; contract or EOA)
+    "value_wei",      # int (native ETH)
+    "value_usd",      # float (token-aware, post-decode)
+    "gas_used",       # int
+    "gas_price_gwei", # float (gwei)
+    "method_id",      # str (4-byte selector hex, or "0x" for native transfer)
+    "success",        # bool
+    "is_x402",        # bool -- interacted with known facilitator
+    "facilitator",    # str | None
+]
+\end{lstlisting}
+Stored as parquet at \code{data/raw/base_<date>.parquet}.
+
+\section{Labels}
+\begin{itemize}
+  \item \textbf{Positive (agent):} addresses appearing on x402 facilitator interactions, or known agent-deployer addresses (Coinbase publishes a list).
+  \item \textbf{Negative (human):} EOAs in the same time window with no x402 interaction, no contract creation, < 100 tx/day.
+  \item \textbf{Unknown:} the rest. Treat as test set.
+\end{itemize}
+This is weak supervision. Good enough for the demo.
+
+\section{Synthetic fallback (always-on)}
+\code{src/ingest/synthetic.py} --- policy library generating ground-truth-labelled traffic:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Policy & Behaviour \\
+\midrule
+\code{human_random} & Poisson arrivals (\textbackslash{}\$\textbackslash{}lambda\textbackslash{}\$=4/day), value lognormal(\textbackslash{}\$\textbackslash{}mu\textbackslash{}\$=4, \textbackslash{}\$\textbackslash{}sigma\textbackslash{}\$=1.5), high counterparty diversity, time-of-day human curve \\
+\code{agent_arb_deterministic} & High-freq cron (every 60--90s), tight gas (within 1 gwei), 2--3 counterparties only, uniform across 24h \\
+\code{agent_payment_bot} & Bursty (10 tx in 30s, then quiet), small fixed value, single counterparty per burst \\
+\code{agent_compromised} & Starts as \code{agent_payment_bot}, drifts: gas spikes, value spikes, new counterparty after t=8h \\
+\code{collusion_ring} & 5--10 wallets coordinating: trades within 60s of each other, shared counterparties \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Output matches the Base schema above + a sidecar \code{<run>_labels.parquet} with \code{(addr, policy, role)}.
+
+\section{Demo data flow}
+\begin{lstlisting}
+data/synthetic/run1.parquet  (or data/raw/base_*.parquet when ready)
+    
+src.features.fingerprint
+    
+data/processed/features.parquet  (per-wallet rows, 30-50 cols)
+    
+src.models.cluster + src.models.score
+    
+data/processed/clusters.parquet, scores.parquet
+    
+src.viz.umap -> results/headline_figure.png
+\end{lstlisting}
+\section{Risk: real Base volume thinner than expected}
+Mitigation: synthetic generator is the primary path; real data layered in if we have time. Saturday's pitch can demo on synthetic with real-data validation as a "and the same pipeline runs on 100k Base transactions" closer.
+
+\end{document}

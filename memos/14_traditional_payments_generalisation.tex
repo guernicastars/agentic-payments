@@ -1,0 +1,287 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Generalising from x402/Base to traditional payment rails}\\
+\large Memo 14}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+\section{Short thesis}
+The core product should not be "x402 fraud detection." It should be a \textbf{rail-agnostic behavioural risk engine for automated payment traffic}.
+
+x402/Base is our first clean demo rail because it exposes machine-readable settlement traces and agent-shaped behaviour. But the same methodology can generalise to card networks, PSPs, ecommerce platforms, and digital banks if we separate:
+
+\begin{enumerate}
+  \item \textbf{Rail adapters} --- Stripe, Shopify, card authorization streams, issuer/acquirer feeds, bank transfers, stablecoins.
+  \item \textbf{Canonical event/entity graph} --- payment events, actors, instruments, merchants, devices, orders, disputes, refunds, chargebacks.
+  \item \textbf{Behavioural features} --- velocity, entropy, concentration, drift, coordination, fulfillment/dispute aftermath.
+  \item \textbf{Risk operating layer} --- score, explanation, queue, action, case management, feedback labels.
+\end{enumerate}
+The portable asset is the feature/graph/risk layer. The rail-specific work is mostly ingestion and schema mapping.
+
+\section{Why this matters commercially}
+If we pitch only x402, we look early but narrow. If we pitch "agentic fraud detection across payment rails," x402 becomes the wedge and the broader market is:
+
+\begin{itemize}
+  \item PSPs and acquirers that already handle card and wallet payments but cannot distinguish human checkout from autonomous agent checkout.
+  \item Marketplaces and ecommerce platforms that need agent-aware order risk, not only card fraud risk.
+  \item Issuers/digital banks that need to detect cardholders authorising agents, compromised agent wallets, virtual-card misuse, and API-driven purchase scams.
+  \item Agent platforms that need a reputation/risk layer before they are trusted with higher spend limits.
+\end{itemize}
+The strongest phrasing: \textbf{we classify and explain machine-shaped payment behaviour, regardless of whether the final settlement rail is Base USDC, Visa, Mastercard, Stripe, Shopify Payments, ACH, or bank transfer.}
+
+\section{Incumbent surfaces to map into}
+\subsubsection*{Stripe}
+Stripe is the easiest traditional rail to prototype against because the API already exposes useful risk and payment context.
+
+Official docs show:
+
+\begin{itemize}
+  \item Radar risk outcomes include \code{risk_level}, \code{risk_score}, \code{outcome.type}, \code{outcome.reason}, \code{network_status}, and analyst-facing \code{seller_message}.
+  \item Stripe reports high/elevated/normal/not-assessed/unknown risk; high risk is blocked by default and elevated risk can enter review.
+  \item The Charge object exposes \code{fraud_details}, \code{payment_method_details}, card checks, network decline/advice codes, 3DS metadata, refund/dispute state, and payment method fingerprints.
+\end{itemize}
+Source anchors:
+
+\begin{itemize}
+  \item Stripe Radar risk evaluation: https://docs.stripe.com/radar/risk-evaluation
+  \item Stripe Charge object: https://docs.stripe.com/api/charges/object
+  \item Stripe Radar rules: https://docs.stripe.com/radar/rules
+\end{itemize}
+\textbf{Adapter strategy:} pull \code{Charge}, \code{PaymentIntent}, \code{Review}, \code{Dispute}, \code{Refund}, \code{Customer}, and Checkout Session data; normalize each successful/failed attempt into a \code{payment_event}; join later disputes/refunds as labels. Use \code{payment_method_details.card.fingerprint} as an instrument node, not a raw PAN. Use Radar output as an incumbent baseline and as an input feature, not as ground truth.
+
+\textbf{What we add:} cross-merchant/agent behavioural features if the PSP/acquirer has enough scope; otherwise merchant-local anomaly and order-risk explanations that catch structured automation Radar may rate as normal/elevated rather than highest.
+
+\subsubsection*{Shopify}
+Shopify is the best ecommerce/order-risk bridge. Its fraud analysis surfaces indicators such as AVS, CVV, IP address details, and multiple-card attempts; recommendations are low/medium/high and trained on historical transactions across Shopify stores. Shopify also supports order risk records from third-party apps.
+
+Source anchors:
+
+\begin{itemize}
+  \item Shopify Fraud analysis: https://help.shopify.com/en/manual/fulfillment/managing-orders/protecting-orders/fraud-analysis
+  \item Shopify Order Risk API: https://shopify.dev/docs/api/admin-rest/2025-07/resources/order-risk
+\end{itemize}
+\textbf{Adapter strategy:} ingest \code{Order}, \code{Customer}, \code{Transaction}, \code{Refund}, \code{Fulfillment}, and \code{OrderRisk} resources. The canonical event becomes an \textbf{order-payment event} rather than only a settlement event. We map Shopify recommendations to \code{external_risk_level}, and write our own \code{OrderRisk} record with \code{accept}, \code{investigate}, or \code{cancel}.
+
+\textbf{What we add:} agent-aware order context: purchase velocity across products, repeated checkout scripts, high SKU/value entropy, shipping/billing drift, return/refund trails, device/IP reuse, merchant-specific behavioural baselines, and clusters of orders linked by email/domain/card/device/shipping address.
+
+\subsubsection*{Visa}
+Visa direct integration is not "easy hackathon API" work. Visa Risk Manager documentation is restricted. Public Visa material describes Visa Advanced Authorization as an AI-powered in-flight risk score using VisaNet-scale data, 500+ attributes, and account history; Visa Risk Manager turns those insights into rules, case management, whitelisting/blacklisting, and reporting.
+
+Source anchors:
+
+\begin{itemize}
+  \item Visa Advanced Authorization + Visa Risk Manager public infographic: https://corporate.visa.com/content/dam/VCOM/corporate/solutions/documents/visa-risk-manager-cnp-global-infographic.pdf
+  \item Visa Risk Manager developer page notes restricted access: https://developer.visa.com/capabilities/vrm/docs
+\end{itemize}
+\textbf{Adapter strategy:} do not plan a direct Visa integration first. Enter through an issuer, acquirer, processor, or PSP that can provide authorization events. The canonical event should support ISO 8583-like auth fields: amount, merchant category, merchant/acquirer, issuer response, AVS/CVV/3DS/ECI signals, token/PAN fingerprint, country, terminal/channel, and later fraud/chargeback labels.
+
+\textbf{What we add:} agent-aware behaviour above the network risk score: repeated agent purchase attempts, virtual-card orchestration, merchant-hopping, velocity bursts, card-testing patterns, and graph links across card tokens, merchants, devices, accounts, and recipients.
+
+\subsubsection*{Mastercard}
+Mastercard's public material is useful as architecture confirmation. Decision Intelligence is real-time transaction risk monitoring for issuers and can score transactions across networks. Mastercard Transaction Fraud Monitoring is aimed at acquirers, PSPs, and payment facilitators at pre-authorization; it returns risk scores and includes rules management, case management, and business insights. Public docs mention minimal integration data on the order of 30 elements and near-real-time latency.
+
+Source anchors:
+
+\begin{itemize}
+  \item Mastercard Decision Intelligence: https://www.mastercard.com/global/en/business/cybersecurity-fraud-prevention/risk-decisioning/decision-intelligence.html
+  \item Mastercard Transaction Fraud Monitoring: https://www.mastercard.com/global/en/business/cybersecurity-fraud-prevention/risk-decisioning/transaction-fraud-monitoring.html
+\end{itemize}
+\textbf{Adapter strategy:} same as Visa: enter through issuer/acquirer/processor partners, not a public self-serve API. Treat Mastercard scores as external model signals and benchmark labels, while our engine supplies additional agent-behaviour features and explanations.
+
+\textbf{What we add:} a model specialised for automated-agent behaviour rather than generic card fraud, plus graph evidence suitable for operations teams.
+
+\section{Canonical schema}
+The current wallet-centric schema should become an entity-centric schema.
+
+\subsubsection*{\code{payment_event}}
+Minimum portable fields:
+
+\begin{itemize}
+  \item \code{event_id}
+  \item \code{rail} --- \code{x402}, \code{stripe}, \code{shopify}, \code{visa_auth}, \code{mastercard_auth}, \code{ach}, \code{bank_transfer}
+  \item \code{event_time}
+  \item \code{amount}
+  \item \code{currency}
+  \item \code{status} --- authorised, captured, failed, blocked, refunded, disputed
+  \item \code{payer_entity_id}
+  \item \code{payee_entity_id}
+  \item \code{instrument_id} --- wallet, card fingerprint/token, bank account fingerprint, payment method id
+  \item \code{merchant_id}
+  \item \code{order_id}
+  \item \code{channel} --- API, browser checkout, mobile, POS, hosted checkout, agent platform
+  \item \code{method_family} --- card, wallet, stablecoin, bank debit, bank transfer
+  \item \code{external_risk_score}
+  \item \code{external_risk_level}
+  \item \code{external_decision}
+  \item \code{raw_ref}
+\end{itemize}
+\subsubsection*{\code{entity}}
+Nodes in the graph:
+
+\begin{itemize}
+  \item payer/customer/account
+  \item wallet
+  \item card token/fingerprint
+  \item bank account fingerprint
+  \item merchant
+  \item order
+  \item device/browser/session
+  \item email/phone/domain
+  \item IP/ASN/geography
+  \item shipping/billing address hash
+  \item agent identity / delegated credential / API key where available
+\end{itemize}
+\subsubsection*{\code{label_event}}
+Labels arrive late and with varying quality:
+
+\begin{itemize}
+  \item chargeback
+  \item confirmed fraud
+  \item manual review decision
+  \item issuer decline/approval
+  \item Radar high/elevated/normal
+  \item Shopify high/medium/low recommendation
+  \item refund/return abuse
+  \item account takeover confirmed
+  \item customer complaint/scam report
+  \item AML/sanctions alert
+\end{itemize}
+\section{Feature families that transfer}
+The current 36 x402 features map well, but we need rename them from wallet-specific to actor/entity-specific.
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Current x402 family & Traditional rail equivalent \\
+\midrule
+Inter-arrival regularity & checkout/payment attempt velocity, retry cadence, subscription/payment schedule regularity \\
+24h uniformity & always-on checkout/API automation across local night hours \\
+Gas tightness & request/checkout automation tightness, repeated browser/device fingerprints, API-idempotency patterns \\
+Counterparty concentration & merchant/SKU/recipient concentration \\
+Method concentration & payment method/card/BNPL/wallet concentration, 3DS strategy concentration \\
+Burst intensity & card testing, bot checkout waves, promo/refund abuse waves \\
+Late counterparty drift & account takeover or compromised agent suddenly buying from new merchants/SKUs/recipients \\
+Coordination & multiple accounts/cards/devices/IPs hitting same merchant/SKU/address/payment pattern in short windows \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Additional traditional-payment features:
+
+\begin{itemize}
+  \item AVS/CVV outcomes and mismatch patterns.
+  \item 3DS/ECI/friction outcomes and step-up bypass/failure history.
+  \item Device/browser/session entropy.
+  \item Email/domain/phone age and reuse.
+  \item Shipping/billing/geography distance and drift.
+  \item Merchant category and SKU risk.
+  \item Authorization decline/advice codes and retry behaviour.
+  \item Capture delay, refund speed, partial refund patterns.
+  \item Chargeback/dispute labels and reason codes.
+  \item Fulfillment risk: digital vs physical, shipping speed, address forwarding, pickup point usage.
+\end{itemize}
+\section{Architecture change}
+Do this in three layers:
+
+\begin{enumerate}
+  \item \code{src/ingest/adapters/}
+\end{enumerate}
+\begin{itemize}
+  \item \code{x402.py}
+  \item \code{stripe.py}
+  \item \code{shopify.py}
+  \item \code{card_auth.py}
+  \item each adapter emits \code{payment_event}, \code{entity}, \code{edge}, and \code{label_event} tables.
+\end{itemize}
+\begin{enumerate}
+  \item \code{src/features/}
+\end{enumerate}
+\begin{itemize}
+  \item rename wallet features conceptually to actor features.
+  \item aggregate by \code{payer_entity_id}, \code{instrument_id}, \code{merchant_id}, and \code{agent_id}.
+  \item keep rail-specific feature namespaces for AVS/CVV/3DS/gas/calldata.
+\end{itemize}
+\begin{enumerate}
+  \item \code{src/models/}
+\end{enumerate}
+\begin{itemize}
+  \item one composite behavioural score.
+  \item optional rail-specific calibration layers.
+  \item graph clustering over typed entity edges.
+  \item external risk scores as features, never as final truth.
+\end{itemize}
+\section{Product wedges by data accessibility}
+\subsubsection*{Easy: Stripe merchant/acquirer pilot}
+Ask one Stripe merchant or marketplace for exported charges, disputes, refunds, customers, and Checkout Sessions. We can build a first traditional-rail demo from CSV/API exports.
+
+What we can prove:
+
+\begin{itemize}
+  \item Radar baseline vs our behavioural score.
+  \item Cases where Radar says normal/elevated but behaviour is coordinated.
+  \item Explanations tied to merchant operations.
+\end{itemize}
+\subsubsection*{Easy-ish: Shopify app/order-risk pilot}
+Build a private Shopify app that reads orders/transactions/refunds and writes \code{OrderRisk} assessments.
+
+What we can prove:
+
+\begin{itemize}
+  \item "Investigate/cancel/accept" directly in merchant workflow.
+  \item Better explanations than raw low/medium/high.
+  \item Detection of order clusters rather than isolated orders.
+\end{itemize}
+\subsubsection*{Hard but valuable: issuer/acquirer auth stream}
+Partner with an issuer, acquirer, PSP, or payment facilitator for auth stream + chargeback labels.
+
+What we can prove:
+
+\begin{itemize}
+  \item Pre-authorization latency and decisioning.
+  \item Agent-aware risk on card rails.
+  \item Graph/cascade detection across accounts/instruments/merchants.
+\end{itemize}
+\subsubsection*{Hardest: direct Visa/Mastercard product integration}
+Not a hackathon path. Treat as eventual distribution/exit/partnership route.
+
+\section{Messaging update}
+Current:
+
+\begin{quote}
+Behavioural risk intelligence for agent traffic on x402/Base.
+\end{quote}
+Better:
+
+\begin{quote}
+Behavioural risk intelligence for automated payment traffic across rails. We start with x402 because it makes machine payments visible, then generalise the same fingerprinting and graph-risk engine to Stripe, Shopify, card authorization streams, and digital banks.
+\end{quote}
+Pitch line:
+
+\begin{quote}
+Existing fraud systems decide whether a payment looks like historic human fraud. We decide whether the payer behaves like an autonomous agent, whether that agent has drifted, and whether it is coordinating with other actors. That is useful on x402, but it is also exactly what Stripe merchants, Shopify stores, PSPs, acquirers, and issuers will need as agents start buying through traditional rails.
+\end{quote}
+\section{Implementation next steps}
+\begin{enumerate}
+  \item Add a \code{PaymentEvent} schema doc and keep x402 as the first adapter.
+  \item Add stub adapters for Stripe and Shopify that read exported CSV/JSON before real API credentials.
+  \item Rename dashboard language from "wallets" to "actors" where possible, while retaining wallet-specific fields in the x402 tab.
+  \item Add a "Rails" filter: \code{Synthetic}, \code{x402/Base}, \code{Stripe}, \code{Shopify}, \code{Card auth}.
+  \item Add an "External risk" panel for Radar/Shopify/Visa/Mastercard scores when present.
+  \item Add "Action mapping":
+\end{enumerate}
+\begin{itemize}
+  \item Stripe: block/review/allowlist/flag/refund/monitor.
+  \item Shopify: accept/investigate/cancel/order-risk record.
+  \item Card auth: approve/decline/step-up/hold/manual review.
+  \item x402: allow/throttle/freeze/reputation downgrade.
+\end{itemize}
+\section{Bottom line}
+x402 is the sharpest demo, but the venture should be positioned around a rail-agnostic insight: \textbf{agents create behavioural traces that legacy fraud systems were not trained to recognise}. Traditional rails give us more labels and commercial buyers; x402 gives us a clean technical wedge and a story about where payments are going.
+
+\end{document}

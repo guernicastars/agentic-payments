@@ -1,0 +1,62 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Today's plan (Friday 2026-04-25)}\\
+\large Memo 06}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{quote}
+\textbf{Status: completed Friday evening.} All Friday blocks shipped (synthetic pipeline, features, clusters, scores, UMAP, dashboard). For Saturday actuals see memos 12 (live x402 track), 15 (Dune snapshots track), 16 (locked numbers), and 17 (data quality).
+\end{quote}
+\section{Goal}
+End the day with a working \textbf{synthetic-data pipeline} end-to-end (generator \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ features \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ clusters \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ composite scores \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ UMAP figure). Saturday is then "swap synthetic for real data + train interpretability probe + Streamlit + rehearse."
+
+\section{Hour-by-hour}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Time & Block & Output \\
+\midrule
+Now \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ +1h & Scaffold + memos & \code{memos/}, dir layout, \code{pyproject.toml}, README, initial commit \\
++1h \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ +2h & Synthetic generator & \code{src/ingest/synthetic.py} + 5 policies; tested 200 wallets \textbackslash{}\$\textbackslash{}times\textbackslash{}\$ 24h \\
++2h \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ +4h & Feature engineering & \code{src/features/fingerprint.py} --- 30-50 features per wallet \\
++4h \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ +5h & Port clusterer & \code{src/models/cluster.py} from \code{wallet_analyzer.py} \\
++5h \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ +6h & Port composite scorer & \code{src/models/score.py} from \code{insider_detector.py} \\
++6h \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ +7h & UMAP + headline figure & \code{src/viz/umap.py} \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ \code{results/figures/headline.png} \\
++7h \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ +8h & Smoke test + memos refresh & End-to-end run; what worked, what to fix Saturday \\
+7pm & Friday rooftop reception & Network. Don't talk too much shop; signal credibility, find gaps in our pitch by listening \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Saturday handoff}
+Saturday morning the cofounder arrives with Coinbase data. Plan:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Time & Block \\
+\midrule
+10:00 \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ 10:30 & Confirm data format, ingest into our schema \\
+10:30 \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ 12:00 & Re-run features + cluster + score on real data \\
+12:00 \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ 14:00 & Linear probe + interpretability (port from \code{polymarket/network/embedding/}) \\
+14:00 \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ 16:00 & Streamlit single-screen dashboard (cluster left, anomaly list right with explanations) \\
+16:00 \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ 17:30 & Pitch rehearsal \textbackslash{}\$\textbackslash{}times\textbackslash{}\$ 5; tighten to exactly 2 minutes \\
+17:30 \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ 19:00 & Buffer / polish \\
+19:00 \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ 20:00 & Pitch slot + Q\&A \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Risks}
+\begin{itemize}
+  \item \textbf{Real data thin or unavailable:} synthetic carries the demo; we frame as "validated on 5 ground-truth-labelled policy classes; same pipeline runs on Base."
+  \item \textbf{Interpretability probe doesn't converge in time:} the composite-score "explanations" come from feature-attribution rules (top-3 z-scores per flagged wallet), no probe needed for the demo.
+  \item \textbf{UMAP separation muddier than expected:} keep the t-SNE fallback ready; tune perplexity; if both fail, switch to PCA + isolation-forest on raw features.
+\end{itemize}
+
+\end{document}

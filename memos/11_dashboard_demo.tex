@@ -1,0 +1,54 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Dashboard demo}\\
+\large Memo 11}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+\section{Product surface}
+Working name: \textbf{Agentic Payment Risk Console}.
+
+The previous dashboard was visually interesting but under-explained: it led with a scatterplot before telling the viewer what decision the product helps them make. The Polymarket dashboard pattern is better: overview cards, tabbed tables, badges, factor bars, and ranked queues. The redesigned app follows that pattern.
+
+Single-screen analyst console:
+
+\begin{itemize}
+  \item Dataset switch: \textbf{Synthetic stress test} vs \textbf{Public x402 Base}.
+  \item Executive readout: one paragraph that says what the current data proves and what it does not prove.
+  \item Metrics: transactions, wallets scored, immediate queue, watchlist, and either compromise recall or recipient count.
+  \item Triage tab: alert queue with wallet, score, tier, action, policy, tx count, concentration, and explanation.
+  \item Selected case: wallet evidence card plus factor breakdown.
+  \item Behaviour Map tab: UMAP fingerprint space, deliberately secondary to the triage queue.
+  \item Coordination tab: wallet graph and cluster table.
+  \item Model Evidence tab: factor distribution so judges can see this is not an LLM vibes classifier.
+\end{itemize}
+\section{Demo beat}
+\begin{enumerate}
+  \item "This is a triage console for agentic payment risk."
+  \item Open on the Synthetic stress test. Show that deterministic agents, compromised drift, and collusion rings enter the queue while humans do not.
+  \item Read the selected case explanation out loud: timing, method concentration, counterparty concentration, coordination.
+  \item Switch to Public x402 Base. Say: "On real public x402 traffic today, we see watchlist behaviour but no high-severity fraud claim yet. That honesty is the point."
+  \item Use the Coordination tab to make compromised-agent contagion concrete.
+\end{enumerate}
+\section{Dashboard commands}
+\begin{lstlisting}
+make demo
+\end{lstlisting}
+Equivalent explicit commands:
+
+\begin{lstlisting}
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e ".[dash,dev]"
+.venv/bin/python -m src.pipeline
+.venv/bin/python -m streamlit run src/viz/dashboard.py
+\end{lstlisting}
+Use \code{.venv/bin/python -m streamlit} rather than \code{streamlit} so the shell does not need a global Streamlit command.
+
+\end{document}

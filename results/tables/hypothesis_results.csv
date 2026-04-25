@@ -1,0 +1,5 @@
+hypothesis,ratio_point,ratio_ci_lo,ratio_ci_hi,u_statistic,mann_whitney_p,verdict,values,monotonic_full,monotonic_excluding_oct,oct_top1_share,oct_top2_share,oct_n_merchants_to_50pct,other_top1_share_mean,other_n_merchants_to_50pct_mean,gap_oct,gap_other_mean,z_gap_top1_top2,snapshot_skewness,snapshot_top5pct_volume_share
+H1_median_compression_>=10x,100.0,10.0,1000.0,51963.0,1.3625239577860763e-44,supported,,,,,,,,,,,,,
+H2_population_strictly_increasing,,,,,,supported (excluding Oct as per memo 17),"{'early_adopters': 39, 'post_linux_fdn': 53, 'post_stripe': 42, 'current': 55}",False,True,,,,,,,,,,
+H3_oct_bipartite_degenerate,,,,,,weak,,,,0.999817997502263,0.9999818146428425,1.0,0.7378542984373077,1.0,0.9996541803616834,0.6174811801828678,1.8198290836021875,,
+H4_pareto_skew_per_snapshot,,,,,,mean is misleading — use median in headline; skewness >> 0 in every snapshot,,,,,,,,,,,,"{'early_adopters': 11.737568987013738, 'post_linux_fdn': 3.5989208798467693, 'post_stripe': 13.463087194975008, 'current': 19.67552186427697}","{'early_adopters': 0.6958397750056208, 'post_linux_fdn': 0.4982450353767895, 'post_stripe': 0.9173064603369017, 'current': 0.997020361021183}"

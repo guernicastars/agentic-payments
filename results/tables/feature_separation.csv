@@ -1,0 +1,2 @@
+hypothesis,silhouette,rf_accuracy_5fold_mean,rf_accuracy_5fold_std,rf_macro_f1_5fold_mean,verdict
+H5_cluster_separation_by_policy,0.3451755022157481,0.9959183673469388,0.008163265306122458,0.9967168262653899,supported

@@ -1,0 +1,139 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Real-Data Quality Notes}\\
+\large Memo 17 -- Caveats and Methodological Decisions}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This memo documents quality issues observed in the Dune-pulled x402 snapshots,
+records the decisions taken in response, and quantifies the cost of each
+decision. The principal finding is that the 2025-10-15 snapshot is
+\emph{bipartite-degenerate}: a single merchant captured 99.98\% of volume,
+and the snapshot represents one institutional pilot rather than a
+population-level distribution. We exclude it from the trend in memo~16 and
+preserve it in the appendix as a regime-break signal.
+\end{abstract}
+
+\section{Oct 2025 snapshot -- bipartite-degenerate, excluded from trend}
+
+The 2025-10-15 daily snapshot looked anomalous on first read (89 tx, mean
+\$685.88, median \$108 versus \$0.10/\$0.01/\$0.001 on the rest of the trend).
+A per-merchant breakdown in
+\code{experiments/snapshot_validation.py:per_snapshot_summary()} produces:
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+Top-1 merchant volume share & 99.98\% \\
+Top-1 merchant tx count & 85 of 89 (95\%) \\
+Top-1 merchant address & \code{0x42ec2a5f...} \\
+Total volume that day & \$61{,}043 \\
+Volume to top-1 & \$61{,}032 \\
+\code{n_merchants_to_50_pct} & 1 \\
+Gap top-1 vs top-2 share & 0.9997 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This is not whale-tx contamination -- it is \emph{whale-merchant
+contamination}. A single contract was the destination of essentially all the
+day's x402 traffic. Even after dropping the top five transactions, the median
+stays at \$99.88 because the remaining 84 tx all go to the same merchant.
+
+The full statistical comparison against the other three snapshots is in memo
+16, hypothesis~H3. The qualitative summary: every snapshot has a single
+dominant merchant, but Oct is the only one with no long tail -- the second
+merchant adds 0.018\% rather than 10--25\%.
+
+\subsection*{Decision}
+
+Drop 2025-10-15 from the trend chart. The remaining three points
+(Jun 2025 / Jan 2026 / Apr 2026) form a clean log-decay line on median tx
+value: \$0.10 $\to$ \$0.01 $\to$ \$0.001.
+
+\subsection*{How we frame it if asked at the pitch}
+
+\begin{quote}
+``October 2025 was bipartite-degenerate: 99.98\% of x402 volume that day
+went through a single merchant address. We treat it as a transitional-phase
+signal -- institutional pilots run before broad agent populations come
+online -- not a trend point. The fact that we can detect this with a
+30-second sanity check is part of what we're shipping.''
+\end{quote}
+
+This actually strengthens the narrative: it shows the system distinguishes
+between population-level shifts and single-actor distortions, which is
+exactly what fraud-vs-noise detection requires.
+
+\section{Other quality notes}
+
+\paragraph{Live x402 thinness.}
+1{,}021 rows in a 60-min window $=$ $\approx 17$ tx/min average $\to$ 84k tx/day
+extrapolated. Consistent with the 7-day facilitator query
+($\approx 590$k tx / 7 days). Scale-consistent.
+
+\paragraph{Baseline contamination.}
+Baseline includes any non-x402 ETH transfer on Base. This will sweep in MEV
+bots, DEX traders, and bridge users. Acceptable for the hackathon: it
+produces a ``humans + non-x402 automation'' cluster, and x402 agents separate
+distinctly. Production fix: filter baseline against known MEV bot lists
+(flashbots, mev-inspect dataset).
+
+\paragraph{Jun 2025 expanded to month-long window.}
+1h-at-noon returned $\approx 0$ rows; expanded to the full month to obtain
+151 transactions. Acceptable because Jun 2025 represents the
+``early adopters'' phase explicitly, where 1h windows are not statistically
+meaningful. The trend uses median tx, which is robust to the wider window.
+
+\section{Ingest schema mapping}
+
+The repository has three ingest paths feeding \code{compute_features()}.
+\code{compute_features} reads only
+\code{from_addr / to_addr / value_usd / block_time_s / gas_used /
+gas_price_gwei / method_id / success}, so the divergence below is benign --
+but worth knowing when joining tables.
+
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+Field & \code{synthetic.py} & \code{ingest/base.py} & \code{ingest/public_x402.py} & Snapshot parquets \\
+\midrule
+Payer wallet      & \code{from_addr} & \code{from_addr}$^\ast$ & \code{from_addr}$^\ast$ & \code{payer} \\
+Recipient         & \code{to_addr}   & \code{to_addr}    & \code{to_addr}      & \code{merchant} \\
+x402 flag         & \code{is_x402}   & \code{is_x402}    & \code{is_x402_eip3009} & file = snapshot \\
+Facilitator       & \code{facilitator} & \code{facilitator} & \code{facilitator_addr} & n/a \\
+USDC value        & \code{value_usd} & \code{value_usd}  & \code{value_usd}    & \code{value_usd} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\noindent$^\ast$ EIP-3009 signer, decoded from calldata; not the facilitator
+that paid gas.
+
+\code{src/viz/trend.py:_summarise()} handles the
+\code{payer/merchant} $\leftrightarrow$ \code{from_addr/to_addr} rename
+automatically.
+
+\section{Reproducibility}
+
+All raw data and execution\_ids are committed in
+\code{data/raw/dune_results/summary.json}. Re-fetch costs zero datapoints via
+\code{--use_cache}. The validation pipeline is one command:
+
+\begin{lstlisting}
+python -m experiments.snapshot_validation
+\end{lstlisting}
+
+This reads the four \code{data/raw/x402_snapshot_*.parquet} files,
+re-computes every metric in this memo, regenerates
+\code{results/figures/median_compression_bootstrap.png} and
+\code{results/figures/concentration_comparison.png}, and writes
+\code{results/tables/hypothesis_results.csv}.
+
+\end{document}

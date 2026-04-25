@@ -40,12 +40,15 @@ data/raw/dune_results/*
 !data/raw/x402_*.parquet
 !data/processed/real_x402*.parquet
 
-# Results: ignore everything except curated pitch artifacts
+# Results: ignore everything except curated pitch artifacts and experiment outputs
 results/figures/*
 !results/figures/.gitkeep
 !results/figures/trend.png
 !results/figures/real_umap.png
 !results/figures/headline.png
+!results/figures/median_compression_bootstrap.png
+!results/figures/concentration_comparison.png
+!results/figures/feature_mi.png
 results/tables/*
 !results/tables/.gitkeep
 !results/tables/*.csv
@@ -57,11 +60,15 @@ results/tables/*
 !results/figures/trend.png
 !results/figures/real_umap.png
 !results/figures/headline.png
+!results/figures/median_compression_bootstrap.png
+!results/figures/concentration_comparison.png
+!results/figures/feature_mi.png
 
-# LaTeX build artefacts (cofounder's methodology memo)
+# LaTeX build artefacts (kept in /tmp by build.sh, but be defensive)
 *.aux
 *.log
 *.out
+*.toc
 *.fls
 *.fdb_latexmk
 *.synctex.gz
