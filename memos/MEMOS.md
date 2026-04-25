@@ -14,6 +14,7 @@ Append-only build log. One memo per topic; keep entries dated. New entries on to
 - [05_data_plan.md](05_data_plan.md) — x402 / Base data sourcing plan, fallbacks, schema.
 - [10_alternative_datasets.md](10_alternative_datasets.md) — Backup datasets and weak-label sources for validation.
 - [12_public_data_collection.md](12_public_data_collection.md) — What we could collect without keys and what needs cofounder/API help.
+- [13_methodology_memo.pdf](13_methodology_memo.pdf) / [tex](13_methodology_memo.tex) — Fraud detection literature, incumbent methods, and exact methodology.
 
 ## Build
 

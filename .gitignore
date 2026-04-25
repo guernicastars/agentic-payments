@@ -24,6 +24,13 @@ results/
 *.png
 *.pdf
 !memos/**/*.png
+!memos/**/*.pdf
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
