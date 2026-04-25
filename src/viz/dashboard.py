@@ -10,10 +10,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from src.live.tracker import LiveTracker, demo_replay
 from src.pipeline import run_pipeline
 
 
 DATA = Path("data")
+LIVE_REPLAY_PATH = DATA / "processed" / "real_x402_payments.parquet"
 
 SYNTHETIC_PATHS = {
     "txs": DATA / "synthetic" / "run1.parquet",
@@ -594,10 +596,133 @@ def render_alert_queue(data: dict[str, pd.DataFrame]) -> str | None:
     return selected
 
 
-def render_tabs(data: dict[str, pd.DataFrame], dataset: str) -> None:
-    triage, behaviour, coordination, evidence, trend = st.tabs(
-        ["Triage", "Behaviour Map", "Coordination", "Model Evidence", "12-month Trend"]
+def _live_tracker_state(reset: bool = False) -> LiveTracker:
+    if reset or "live_tracker" not in st.session_state:
+        st.session_state.live_tracker = LiveTracker(demo_replay(LIVE_REPLAY_PATH))
+        st.session_state.live_ticker = []  # last N tx for the ticker view
+        st.session_state.live_paused = False
+    return st.session_state.live_tracker
+
+
+@st.fragment(run_every="1s")
+def _live_fragment() -> None:
+    """Refreshes once per second; the rest of the dashboard does NOT rerun."""
+    tracker: LiveTracker = st.session_state.live_tracker
+
+    if not st.session_state.get("live_paused", False):
+        event = tracker.tick()
+        if event is not None:
+            ticker = st.session_state.live_ticker
+            ticker.append({
+                "time": pd.Timestamp.now().strftime("%H:%M:%S"),
+                "wallet": str(event.tx.get("from_addr", ""))[:10] + "...",
+                "to": str(event.tx.get("to_addr", ""))[:10] + "...",
+                "value_usd": float(event.tx.get("value_usd") or 0.0),
+                "alert": "ALERT" if event.alert else "",
+            })
+            st.session_state.live_ticker = ticker[-12:]
+            st.session_state.live_population = event.population_size
+            st.session_state.live_warming = event.warming_up
+            st.session_state.live_remaining = getattr(tracker.stream, "remaining", -1)
+
+    pop = st.session_state.get("live_population", 0)
+    warming = st.session_state.get("live_warming", True)
+    remaining = st.session_state.get("live_remaining", -1)
+    n_tx_seen = tracker.total_tx_seen
+    n_alerts = len(tracker.alerts)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("TX seen", f"{n_tx_seen:,}")
+    c2.metric("Wallets observed", f"{pop:,}")
+    c3.metric("Alerts raised", f"{n_alerts:,}")
+    if warming:
+        from src.live.tracker import MIN_POPULATION
+        c4.metric("Status", f"warming up ({pop}/{MIN_POPULATION})")
+    elif remaining >= 0:
+        c4.metric("Stream", f"{remaining} tx remaining")
+    else:
+        c4.metric("Status", "live")
+
+    st.markdown("##### Last alerts")
+    if not tracker.alerts:
+        st.markdown(
+            f'<div class="section-card" style="color:#94a3b8;">'
+            f'no alerts yet '
+            f'{"(warming up — need {MIN_POPULATION}+ wallets)" if warming else ""}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        for alert in tracker.alerts[-4:][::-1]:
+            badge = tier_badge(alert["tier"])
+            st.markdown(
+                f'<div class="section-card" style="margin-bottom:0.45rem;'
+                f'border-left:3px solid #e5484d;">'
+                f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                f'<div><span class="mono">{alert["wallet_short"]}...</span> '
+                f'&nbsp;{badge}&nbsp;'
+                f'<span class="small-muted">tick {alert["tick"]}</span></div>'
+                f'<div style="color:#f5f7fa;font-weight:600;">{alert["composite_score"]:.1f}</div>'
+                f'</div>'
+                f'<div style="color:#dce3ea;margin-top:0.4rem;font-size:0.92rem;">'
+                f'{alert["explanation"]}'
+                f'</div>'
+                f'<div class="small-muted" style="margin-top:0.3rem;">'
+                f'paid <span class="mono">{alert["to_addr_short"]}...</span>'
+                f' &middot; ${alert["value_usd"]:.4f}'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("##### Stream ticker")
+    ticker = st.session_state.get("live_ticker", [])
+    if not ticker:
+        st.caption("waiting for next event...")
+    else:
+        st.dataframe(
+            pd.DataFrame(ticker[::-1]),
+            width="stretch",
+            hide_index=True,
+            height=320,
+            column_config={
+                "time": "Time",
+                "wallet": "Payer",
+                "to": "Merchant",
+                "value_usd": st.column_config.NumberColumn("USD", format="$%.4f"),
+                "alert": "Alert",
+            },
+        )
+
+
+def render_live_tracker() -> None:
+    st.subheader("Live x402 risk stream")
+    st.caption(
+        "Replay of recently-decoded Base x402 settlements. Each tick = one tx; "
+        "scores recomputed on the full live population; alert fires when a "
+        "wallet crosses the top-8% percentile (with cooldown)."
     )
+    _live_tracker_state()
+    cols = st.columns([0.20, 0.20, 0.60])
+    if cols[0].button("Restart", width="stretch"):
+        _live_tracker_state(reset=True)
+        st.session_state.live_ticker = []
+        st.rerun()
+    paused = st.session_state.get("live_paused", False)
+    if cols[1].button("Resume" if paused else "Pause", width="stretch"):
+        st.session_state.live_paused = not paused
+        st.rerun()
+    cols[2].caption("Replay ticks at 1 tx/second. Hand-curated order: prolific wallets seeded first to clear warm-up within ~30s.")
+    _live_fragment()
+
+
+def render_tabs(data: dict[str, pd.DataFrame], dataset: str) -> None:
+    live, triage, behaviour, coordination, evidence, trend = st.tabs(
+        ["Live Tracker", "Triage", "Behaviour Map", "Coordination", "Model Evidence", "12-month Trend"]
+    )
+    with live:
+        render_live_tracker()
+
     with triage:
         left, right = st.columns([1.45, 1.0], gap="large")
         with left:
