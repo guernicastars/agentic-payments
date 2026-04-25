@@ -10,16 +10,25 @@ const stats: Stat[] = [
   },
   {
     value: "28,000×",
-    label: "daily volume growth",
+    label: "daily volume growth, same window",
   },
   {
     value: "99.6%",
-    label: "RF 5-fold acc on synthetic policy classes",
+    label: "RF 5-fold accuracy on synthetic policy classes",
   },
   {
     value: "97%",
-    label: "of features carry MI ≥ 0.05",
+    label: "of features carry MI ≥ 0.05 (memo 08)",
   },
+];
+
+const dimensions: string[] = [
+  "Agent-likeness",
+  "Behavioural drift",
+  "Peer coordination",
+  "Policy violation",
+  "Counterparty risk",
+  "Prompt-injection",
 ];
 
 export default function Hero() {
@@ -29,13 +38,14 @@ export default function Hero() {
         Bloomsbury Tech · Hackathon Build · April 2026
       </p>
       <h1 className="mt-4 text-4xl font-bold leading-tight text-ink-50 md:text-6xl">
-        Behavioural risk intelligence for agentic payment rails.
+        Runtime risk control for autonomous payments.
       </h1>
       <p className="mt-6 max-w-3xl text-lg text-ink-300">
         Visa, Mastercard, and Stripe Radar were trained on a billion human
-        transactions. AI agents settle in tenths of a cent through x402 —
-        invisible to those models. We fingerprint and flag agent traffic in
-        real time, end-to-end statistical, no LLM.
+        transactions. AI agents settle in tenths of a cent through x402,
+        delegate authority through tools, and read attacker-tampered invoices.
+        We monitor, score, and govern financial actions taken by AI agents —
+        before money moves.
       </p>
 
       <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -61,8 +71,23 @@ export default function Hero() {
           href="#memos"
           className="rounded-md border border-ink-700 px-5 py-3 text-ink-100 hover:bg-ink-800"
         >
-          Read the methodology
+          Methodology + memos
         </a>
+      </div>
+
+      <p className="mt-8 text-center text-xs text-ink-500">
+        The risk vector — every action gets a six-dimension score before a
+        decision.
+      </p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {dimensions.map((d) => (
+          <span
+            key={d}
+            className="rounded-full border border-ink-700 bg-ink-800 px-3 py-1 text-xs text-ink-300"
+          >
+            {d}
+          </span>
+        ))}
       </div>
     </section>
   );

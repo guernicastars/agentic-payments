@@ -63,6 +63,7 @@ def run_pipeline(
     n_agent_arb: int = 40,
     n_agent_payment: int = 40,
     n_agent_compromised: int = 10,
+    n_prompt_injected: int = 5,
     n_collusion_rings: int = 2,
 ) -> dict[str, Path]:
     root = Path(out_dir)
@@ -78,6 +79,7 @@ def run_pipeline(
         n_agent_arb=n_agent_arb,
         n_agent_payment=n_agent_payment,
         n_agent_compromised=n_agent_compromised,
+        n_prompt_injected=n_prompt_injected,
         n_collusion_rings=n_collusion_rings,
         duration_hours=hours,
         seed=seed,
@@ -150,6 +152,7 @@ def main() -> None:
     parser.add_argument("--n_agent_arb", type=int, default=40)
     parser.add_argument("--n_agent_payment", type=int, default=40)
     parser.add_argument("--n_agent_compromised", type=int, default=10)
+    parser.add_argument("--n_prompt_injected", type=int, default=5)
     parser.add_argument("--n_collusion_rings", type=int, default=2)
     args = parser.parse_args()
 

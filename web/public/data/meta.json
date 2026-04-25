@@ -1,9 +1,44 @@
 {
-  "built_at": "2026-04-25T13:13:40+00:00",
-  "events": 360,
+  "built_at": "2026-04-25T15:35:42+00:00",
   "trend_rows": 4,
-  "scores_rows": 25,
-  "embedding_rows": 116,
+  "scenarios": [
+    {
+      "key": "base_x402",
+      "label": "Public x402 (Base)",
+      "description": "Recorded x402 EIP-3009 settlements pulled from Base via Blockscout. The honest demo: real wallets, real flow, scoring computed live.",
+      "events": 360,
+      "alerts": 29,
+      "leaderboard_rows": 25,
+      "embedding_rows": 104
+    },
+    {
+      "key": "compromised_drift",
+      "label": "Compromised agent (drift)",
+      "description": "Synthetic \u2014 agents start as well-behaved x402 payment bots and drift to a new counterparty + value pattern after t=8h. The classic 'compromised credential' fraud shape.",
+      "events": 360,
+      "alerts": 58,
+      "leaderboard_rows": 25,
+      "embedding_rows": 26
+    },
+    {
+      "key": "collusion_ring",
+      "label": "Collusion ring",
+      "description": "Synthetic \u2014 three coordinated rings of 6-8 wallets each fire bursts within 60s windows on shared counterparties.",
+      "events": 360,
+      "alerts": 1,
+      "leaderboard_rows": 25,
+      "embedding_rows": 29
+    },
+    {
+      "key": "prompt_injected_invoice",
+      "label": "Prompt-injected invoice",
+      "description": "Synthetic \u2014 agent reads a tampered invoice mid-window and diverts payments to an attacker wallet. The agentic-specific failure mode: action / intent mismatch.",
+      "events": 360,
+      "alerts": 12,
+      "leaderboard_rows": 25,
+      "embedding_rows": 25
+    }
+  ],
   "headline": {
     "median_compression": 100,
     "volume_growth": 28000,

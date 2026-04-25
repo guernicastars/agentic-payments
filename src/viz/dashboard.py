@@ -391,7 +391,7 @@ def readout(data: dict[str, pd.DataFrame], dataset: str) -> None:
         text = (
             f"<strong>Public x402 overlay.</strong><br>"
             f"{len(txs):,} decoded Base USDC x402 payments across {window}. "
-            f"The current pull produces {counts['medium']} medium watchlist wallets and no high-severity fraud claims, "
+            f"The current pull produces {counts['medium']} medium-risk wallets and no high-severity policy breaches, "
             "which is the honest read until labels or larger history arrive."
         )
     st.markdown(f'<div class="readout">{text}</div>', unsafe_allow_html=True)
@@ -697,18 +697,49 @@ def _live_fragment() -> None:
             unsafe_allow_html=True,
         )
     else:
+        from src.models.score import SUBSCORE_LABEL
         for alert in tracker.alerts[-4:][::-1]:
             badge = tier_badge(alert["tier"])
+            decision = (
+                "BLOCK" if (alert["tier"] == "critical"
+                            or alert.get("top_factor_value", 0) >= 90)
+                else "REVIEW"
+            )
+            decision_color = "#e5484d" if decision == "BLOCK" else "#f97316"
+            top_factor_label = SUBSCORE_LABEL.get(
+                alert.get("top_factor_name", ""),
+                alert.get("top_factor_name", "overall"),
+            )
+            top_factor_value = alert.get("top_factor_value", 0.0)
+            # Sub-score badge row
+            sub_pills = ""
+            for k, v in (alert.get("subscores") or {}).items():
+                lbl = SUBSCORE_LABEL.get(k, k)
+                emphasised = (k == alert.get("top_factor_name"))
+                color = "#2dd4bf" if emphasised else "#8792a0"
+                sub_pills += (
+                    f'<span style="display:inline-block;border:1px solid {color};'
+                    f'color:{color};border-radius:999px;padding:0.05rem 0.5rem;'
+                    f'margin:0 0.2rem 0.2rem 0;font-size:0.72rem;">'
+                    f'{lbl} {v:.0f}</span>'
+                )
             st.markdown(
                 f'<div class="section-card" style="margin-bottom:0.45rem;'
-                f'border-left:3px solid #e5484d;">'
+                f'border-left:3px solid {decision_color};">'
                 f'<div style="display:flex;justify-content:space-between;align-items:center;">'
                 f'<div><span class="mono">{alert["wallet_short"]}...</span> '
                 f'&nbsp;{badge}&nbsp;'
-                f'<span class="small-muted">tick {alert["tick"]}</span></div>'
-                f'<div style="color:#f5f7fa;font-weight:600;">{alert["composite_score"]:.1f}</div>'
+                f'<span class="small-muted">tick {alert["tick"]}</span>&nbsp;'
+                f'<span style="color:{decision_color};font-weight:600;font-size:0.78rem;'
+                f'border:1px solid {decision_color};border-radius:4px;padding:0.05rem 0.4rem;">'
+                f'{decision}</span></div>'
+                f'<div style="color:#f5f7fa;font-weight:600;">{alert.get("overall_action_risk", alert["composite_score"]):.1f}</div>'
                 f'</div>'
-                f'<div style="color:#dce3ea;margin-top:0.4rem;font-size:0.92rem;">'
+                f'<div style="color:#f5f7fa;margin-top:0.35rem;font-size:0.85rem;">'
+                f'<strong>{top_factor_label}:</strong> {top_factor_value:.0f}/100'
+                f'</div>'
+                f'<div style="margin-top:0.35rem;">{sub_pills}</div>'
+                f'<div style="color:#b7c0ca;margin-top:0.4rem;font-size:0.86rem;">'
                 f'{alert["explanation"]}'
                 f'</div>'
                 f'<div class="small-muted" style="margin-top:0.3rem;">'
@@ -740,11 +771,14 @@ def _live_fragment() -> None:
 
 
 def render_live_tracker() -> None:
-    st.subheader("Live x402 risk stream")
+    st.subheader("Live action risk stream")
     st.caption(
-        "Replay of recently-decoded Base x402 settlements. Each tick = one tx; "
-        "scores recomputed on the full live population; alert fires when a "
-        "wallet crosses the top-8% percentile (with cooldown)."
+        "Replay of recently-decoded Base x402 settlements. Each tick = one action; "
+        "scores recomputed on the full live population. An alert fires when a "
+        "wallet's overall action risk enters the top-8% percentile **or** any "
+        "sub-score (agent-likeness · drift · coordination · policy violation · "
+        "counterparty risk · prompt-injection) crosses 75/100. Each alert is "
+        "labelled as Allow / Review / Block — runtime control, not just analytics."
     )
     _live_tracker_state()
     cols = st.columns([0.20, 0.20, 0.60])
@@ -762,7 +796,7 @@ def render_live_tracker() -> None:
 
 def render_tabs(data: dict[str, pd.DataFrame], dataset: str) -> None:
     live, triage, behaviour, coordination, evidence, trend = st.tabs(
-        ["Live Tracker", "Triage", "Behaviour Map", "Coordination", "Model Evidence", "12-month Trend"]
+        ["Live Risk", "Triage", "Behaviour Map", "Coordination", "Model Evidence", "12-month Trend"]
     )
     with live:
         render_live_tracker()
