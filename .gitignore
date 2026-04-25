@@ -13,9 +13,13 @@ data/synthetic/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/synthetic/.gitkeep
+!data/raw/sample_*.csv
+!data/processed/sample_*.csv
 *.parquet
 *.csv
 !data/**/sample_*.csv
+!data/raw/x402_*.parquet
+!data/processed/real_x402*.parquet
 results/
 *.png
 *.pdf

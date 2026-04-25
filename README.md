@@ -33,6 +33,13 @@ python -m src.pipeline
 streamlit run src/viz/dashboard.py
 ```
 
+Public x402/Base data:
+
+```bash
+python -m src.ingest.public_x402
+python -m src.pipeline_public
+```
+
 Manual pipeline:
 
 ```bash
