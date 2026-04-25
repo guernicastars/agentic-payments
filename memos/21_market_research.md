@@ -10,7 +10,7 @@ This memo replaces the placeholder market sizing in memo 20 with sourced figures
 
 Three findings drive the deck:
 
-1. **The market we sell into is large and growing.** Card-not-present fraud alone reaches $49B in losses by 2030 [H]. Global fraud detection software market is $67B in 2026 → $244B by 2034 [M]. **Our addressable software spend is roughly 5–7% of fraud losses, sized appropriately.**
+1. **The market we sell into is large and growing.** Card-not-present fraud alone reaches $49B in losses by 2030 [H]. Global fraud detection software market is $67B in 2026 → $244B by 2034 [M]. Industry rule of thumb: enterprises budget **5–10% of expected fraud losses** for prevention software [H — Tactionsoft, FinancialModelsLab]. EMEA financial institutions alone spent **$85B in 2023** on financial crime compliance [H — McKinsey].
 
 2. **The agentic-payments rail is real but smaller and more volatile than the narrative.** Stablecoin volume hit $33T in 2025, up 72% [H]. But x402 specifically — the rail our demo runs on — peaked in Dec 2025 (731k tx/day) and is down 92% to ~57k tx/day by March 2026 [H]. **Visa estimates agent-initiated transaction volume at $300-500B by 2030, up from ~$3B in 2025** [H — Visa]. The rail isn't the bet; the *behavioural shape of agent traffic on any rail* is the bet.
 
@@ -71,13 +71,14 @@ This is where derivation matters because no analyst report exists yet. Build bot
 - $300B × 8bps = **$2.4B in agent fraud losses by 2030**
 
 **Step 3: fraud-detection software spend as % of fraud losses**
-- Industry rule-of-thumb: fraud detection vendors capture 5–10% of underlying fraud loss exposure (i.e., what enterprises pay for prevention is a fraction of what they'd lose without it). Source: triangulated from Stripe Radar pricing public docs + Sardine ARR per fraud-loss-prevented disclosures + Feedzai customer case studies.
-- $2.4B × 7% = **~$170M agent-fraud software spend in 2030 (low end)**
+- Industry rule-of-thumb confirmed: enterprises budget **5–10%** of expected fraud losses on prevention software [H — Tactionsoft "Fraud Detection Software Development Cost 2025"]. Mid-sized companies allocate ~11% of revenue to fraud prevention; small businesses ~6% [H — FinancialModelsLab].
+- $2.4B × 7.5% (mid-range) = **~$180M agent-fraud software spend in 2030 (low end)**
+- ROI anchor: every $1 spent on fraud detection prevents ~$3.68 in losses [H — industry case studies]; first-year deployments report 40–60% reduction in fraud losses [H].
 
 **Step 4: stretch case — McKinsey global figure**
-- $3T × 8bps × 7% = **$1.7B agent-fraud software spend by 2030**
+- $3T × 8bps × 7.5% = **$1.8B agent-fraud software spend by 2030**
 
-**SAM range to put on deck: $170M – $1.7B by 2030**, depending on whether agent commerce hits Visa's number or McKinsey's. Show both.
+**SAM range to put on deck: $180M – $1.8B by 2030**, depending on whether agent commerce hits Visa's number or McKinsey's. Show both.
 
 ### SOM — what we can capture in 5 years
 
@@ -144,13 +145,13 @@ Six dated events in the last 18 months that justify the timing claim:
 
 ### Direct (fraud detection / risk software)
 
-| Company | 2024 ARR | Last raise | Valuation | Positioning vs us |
+| Company | Revenue / ARR | Last raise | Valuation | Positioning vs us |
 |---|---|---|---|---|
-| **Stripe Radar** | Not disclosed (estimated $500M+ run-rate from Stripe revenue mix) | N/A — internal | Part of Stripe's $90B | Channel conflict: Stripe owns merchant relationship, owns Bridge, owns agent SDK |
-| **Sardine** | Implied $50–100M from "130% YoY" growth & 300 enterprise customers | $70M Series C, Feb 2025 | $660M | Closest direct competitor; behavioural-device-focused; human-trained |
-| **Feedzai** | Estimated $200M+ (Tier-1 bank focus) | $75M, Oct 2025 | $2B+ | Enterprise-bank focus; not agent-native |
+| **Stripe Radar** | Not disclosed; Stripe total revenue $19.4B in 2025, ARR $6.1B; Radar blocked $2.3B in fraud in 2025 [H — Stripe 2025 annual letter] | N/A — internal | Part of Stripe (~$90B last priced) | Channel conflict: Stripe owns merchant relationship, owns Bridge, owns agent SDK |
+| **Sardine** | **$23M revenue Oct 2024** [H — getlatka], 130% YoY ARR growth → ~$50M ARR run-rate end-2025 | $70M Series C, Feb 2025 | $660M (= ~13× current ARR / ~29× LTM revenue) | Closest direct competitor; behavioural-device-focused; human-trained |
+| **Feedzai** | Estimated $200M+ (Tier-1 bank focus) | $75M, Oct 2025 | $2B+ (~10× est. revenue) | Enterprise-bank focus; not agent-native |
 | **Forter** | Privately reported ~$120M (2023) | Last priced 2021 | ~$3B (2021 round) | Outcome-based; e-commerce focus |
-| **Riskified** (NYSE: RSKD) | $327M (2024) | Public | ~$1.4B mkt cap | E-commerce CNP; slowing |
+| **Riskified** (NYSE: RSKD) | **$344.6M (FY2025, +5% YoY)** [H — Riskified IR]; first GAAP profit Q4 2025 ($5.8M); 2026 guide $372–384M | Public | ~$1.4B mkt cap (= ~4× revenue, slow-growth tax) | E-commerce CNP; ADR 100% / NDR 105% |
 | **BioCatch** | Not disclosed | Permira majority Sep 2024 | $1.3B | Behavioural biometrics — shows our thesis works at exit scale |
 
 ### Adjacent (identity / KYC / blockchain analytics)
