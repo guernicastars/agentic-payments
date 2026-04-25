@@ -24,8 +24,17 @@ Single-screen Streamlit app:
 ## Dashboard commands
 
 ```bash
-python -m src.pipeline
-streamlit run src/viz/dashboard.py
+make demo
 ```
 
-Fresh clones can skip the first command; the dashboard auto-builds synthetic artifacts if they are missing.
+Equivalent explicit commands:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e ".[dash,dev]"
+.venv/bin/python -m src.pipeline
+.venv/bin/python -m streamlit run src/viz/dashboard.py
+```
+
+Use `.venv/bin/python -m streamlit` rather than `streamlit` so the shell does not need a global Streamlit command.
