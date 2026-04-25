@@ -29,11 +29,23 @@ agentic-payments/
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dash,dev]"
-python -m src.ingest.synthetic --n_agents 200 --n_humans 200 --hours 24 --out data/synthetic/run1.parquet
-python -m src.features.fingerprint data/synthetic/run1.parquet -o data/processed/features.parquet
-python -m src.models.score data/processed/features.parquet -o data/processed/scores.parquet
-python -m src.viz.umap data/processed/features.parquet --labels data/synthetic/run1_labels.parquet
+python -m src.pipeline
+streamlit run src/viz/dashboard.py
 ```
+
+Manual pipeline:
+
+```bash
+python -m src.ingest.synthetic --n_human 100 --n_agent_arb 40 --n_agent_payment 40 --n_agent_compromised 10 --hours 24 --out data/synthetic/run1.parquet
+python -m src.features.fingerprint data/synthetic/run1.parquet -o data/processed/features.parquet
+python -m src.models.cluster data/synthetic/run1.parquet
+python -m src.models.score data/processed/features.parquet -o data/processed/scores.parquet
+python -m src.viz.embed data/processed/features.parquet --labels data/synthetic/run1_labels.parquet --scores data/processed/scores.parquet
+```
+
+## Demo dashboard
+
+The Streamlit app is the hackathon demo surface: UMAP wallet clusters, composite risk tiers, top wallet explanations, and a coordination graph. It auto-builds the synthetic demo artifacts if `data/processed/embedding.parquet` is missing, so a fresh clone can run the dashboard after installing dependencies.
 
 ## Reused from adjacent repos
 
