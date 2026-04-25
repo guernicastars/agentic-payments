@@ -115,6 +115,52 @@ def test_ingest_uses_signer_not_facilitator() -> None:
     assert canonical.loc[0, "value_usd"] == 2.5  # 2_500_000 / 10**6
 
 
+def test_live_tracker_warmup_clears_and_alerts_fire() -> None:
+    """Live tracker must clear warm-up within ~50 ticks on the demo replay
+    and produce at least one alert within 200 ticks. Validates the
+    architecture-critical claim from the Plan-agent review:
+    population-statistic scoring + percentile-based alerts."""
+    from src.live.tracker import LiveTracker, MIN_POPULATION, demo_replay
+
+    tracker = LiveTracker(demo_replay("data/processed/real_x402_payments.parquet"))
+    warm_at: int | None = None
+    alerts = []
+    for i in range(220):
+        event = tracker.tick()
+        if event is None:
+            break
+        if not event.warming_up and warm_at is None:
+            warm_at = i + 1
+        if event.alert is not None:
+            alerts.append(event.alert)
+    assert warm_at is not None and warm_at <= 50, (
+        f"warm-up should clear within 50 ticks; got {warm_at}"
+    )
+    assert tracker.population_size >= MIN_POPULATION
+    assert len(alerts) >= 1, "expected at least one alert in 220 ticks"
+    # Alerts must include explanation + non-zero score
+    for a in alerts:
+        assert a["explanation"]
+        assert a["composite_score"] > 0
+        assert a["tier"] in {"critical", "high", "medium", "low"}
+
+
+def test_live_tracker_alert_only_on_new_tx_wallet() -> None:
+    """Ensure we don't fire alerts on wallets whose buffer didn't change
+    this tick (Plan-agent review item)."""
+    from src.live.tracker import LiveTracker, demo_replay
+
+    tracker = LiveTracker(demo_replay("data/processed/real_x402_payments.parquet"))
+    for _ in range(220):
+        event = tracker.tick()
+        if event is None:
+            break
+        if event.alert is not None:
+            assert event.alert["wallet"] == str(event.tx["from_addr"]), (
+                "alert wallet must match the tx that triggered the tick"
+            )
+
+
 def test_trend_locked_numbers_render() -> None:
     """The trend tab must render even before snapshot parquets exist."""
     from src.viz.trend import load_or_locked, trend_figure_plotly

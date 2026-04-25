@@ -49,10 +49,17 @@ python3 -m venv .venv
 ```
 
 The dashboard has a **Dataset** segmented control that switches between
-`Synthetic stress test` and `Public x402 Base`, plus a `12-month Trend` tab
-that aggregates the four Dune snapshot parquets at
-`data/raw/x402_snapshot_*.parquet` (falls back to locked numbers from
-memo 16 if those files aren't present yet).
+`Synthetic stress test` and `Public x402 Base`. Tabs:
+
+- **Live Tracker** — replay-based live fraud stream (1 tx/s), uses
+  `@st.fragment(run_every="1s")`. Clears warm-up at ~30 wallets and emits
+  alerts when a wallet's behavioural composite enters the top-8% of the
+  live population. Code: `src/live/tracker.py`.
+- **Triage / Behaviour Map / Coordination / Model Evidence** — static
+  views over the cooked dataset.
+- **12-month Trend** — aggregates the four Dune snapshot parquets at
+  `data/raw/x402_snapshot_*.parquet` (falls back to locked numbers from
+  memo 16 if those files aren't present yet).
 
 Pipeline on a pre-ingested real-data parquet:
 
