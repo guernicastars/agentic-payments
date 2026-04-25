@@ -39,4 +39,4 @@ Source: Dune Analytics on Base mainnet.
 
 ## Excluded snapshot
 
-2025-10-15 excluded from trend after sanity check — see `14_real_data_quality.md`.
+2025-10-15 excluded from trend after sanity check — see `17_real_data_quality.md`.

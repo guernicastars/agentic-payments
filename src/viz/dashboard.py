@@ -722,7 +722,7 @@ def render_tabs(data: dict[str, pd.DataFrame], dataset: str) -> None:
         )
         st.markdown(
             '<div class="small-muted">Oct 2025 excluded — bipartite-degenerate sample '
-            '(99.98% of volume routed through a single merchant). See memo 14.</div>',
+            '(99.98% of volume routed through a single merchant). See memo 17.</div>',
             unsafe_allow_html=True,
         )
 

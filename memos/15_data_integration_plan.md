@@ -249,7 +249,7 @@ After running on Saturday, append:
   > Counterparty diversity: X → Y (concentration on top API providers).
   > Pitch quote: "agent population grew Nx in 12 months while average payment shrunk Mx — these are not human users."
 
-- **`memos/14_real_data_quality.md`** — early_adopters (Jun 2025) likely has near-zero rows. Honest framing: "x402 didn't scale until late 2025; first usable cohort post-Linux Foundation". Use as part of the trend story, not as a bug.
+- **`memos/17_real_data_quality.md`** — early_adopters (Jun 2025) likely has near-zero rows. Honest framing: "x402 didn't scale until late 2025; first usable cohort post-Linux Foundation". Use as part of the trend story, not as a bug.
 
 ## Saturday execution sequence
 
