@@ -7,19 +7,48 @@ venv/
 .env.local
 .ipynb_checkpoints/
 .DS_Store
+
+# Generated data
 data/raw/*
 data/processed/*
+data/processed_base/*
 data/synthetic/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/synthetic/.gitkeep
+
+# Reproducibility passport — execution_ids are cheap, regenerable from Dune
+!data/raw/dune_results/
+data/raw/dune_results/*
+!data/raw/dune_results/summary.json
+!data/raw/dune_results/.gitkeep
+
+# Sample CSVs (50-100 rows each) — committed for smoke tests
+!data/samples/
+!data/samples/*.csv
+
 *.parquet
 *.csv
+!data/samples/*.csv
 !data/**/sample_*.csv
-results/
+
+# Results: ignore everything except curated pitch artifacts
+results/figures/*
+!results/figures/.gitkeep
+!results/figures/trend.png
+!results/figures/real_umap.png
+!results/figures/headline.png
+results/tables/*
+!results/tables/.gitkeep
+!results/tables/*.csv
+
 *.png
 *.pdf
 !memos/**/*.png
+!results/figures/trend.png
+!results/figures/real_umap.png
+!results/figures/headline.png
+
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
