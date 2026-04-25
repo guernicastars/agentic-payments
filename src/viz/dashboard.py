@@ -10,17 +10,23 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.pipeline import run_pipeline
+from src.pipeline import run_pipeline, run_pipeline_from_parquet
 
 
 DATA = Path("data")
-TX_PATH = DATA / "synthetic" / "run1.parquet"
-LABEL_PATH = DATA / "synthetic" / "run1_labels.parquet"
-FEATURE_PATH = DATA / "processed" / "features.parquet"
-SCORE_PATH = DATA / "processed" / "scores.parquet"
-CLUSTER_PATH = DATA / "processed" / "clusters.parquet"
-EDGE_PATH = DATA / "processed" / "cluster_edges.parquet"
-EMBED_PATH = DATA / "processed" / "embedding.parquet"
+
+SOURCES = {
+    "synthetic": {
+        "tx": DATA / "synthetic" / "run1.parquet",
+        "labels": DATA / "synthetic" / "run1_labels.parquet",
+        "processed": DATA / "processed",
+    },
+    "base": {
+        "tx": DATA / "raw" / "base_ingested.parquet",
+        "labels": DATA / "raw" / "base_ingested_labels.parquet",
+        "processed": DATA / "processed_base",
+    },
+}
 
 TIER_ORDER = ["critical", "high", "medium", "low", "unknown"]
 TIER_COLORS = {
@@ -49,17 +55,37 @@ st.set_page_config(
 
 
 @st.cache_data(show_spinner=False)
-def load_or_build() -> dict[str, pd.DataFrame]:
-    if not EMBED_PATH.exists() or not SCORE_PATH.exists() or not FEATURE_PATH.exists():
-        run_pipeline()
+def load_or_build(source: str = "synthetic") -> dict[str, pd.DataFrame]:
+    cfg = SOURCES[source]
+    tx_path = cfg["tx"]
+    label_path = cfg["labels"]
+    processed = cfg["processed"]
+    embed_path = processed / "embedding.parquet"
+    score_path = processed / "scores.parquet"
+    feature_path = processed / "features.parquet"
+    cluster_path = processed / "clusters.parquet"
+    edge_path = processed / "cluster_edges.parquet"
+
+    if source == "synthetic":
+        if not embed_path.exists() or not score_path.exists() or not feature_path.exists():
+            run_pipeline()
+    else:
+        if not tx_path.exists():
+            raise FileNotFoundError(
+                f"no Base ingest at {tx_path} — run `python -m src.ingest.base <dump>` first."
+            )
+        if not embed_path.exists() or not score_path.exists() or not feature_path.exists():
+            run_pipeline_from_parquet(tx_path, label_path if label_path.exists() else None, processed)
+
+    labels = pd.read_parquet(label_path) if label_path.exists() else pd.DataFrame(columns=["addr", "policy", "role", "ring_id"])
     return {
-        "txs": pd.read_parquet(TX_PATH),
-        "labels": pd.read_parquet(LABEL_PATH),
-        "features": pd.read_parquet(FEATURE_PATH),
-        "scores": pd.read_parquet(SCORE_PATH),
-        "clusters": pd.read_parquet(CLUSTER_PATH) if CLUSTER_PATH.exists() else pd.DataFrame(),
-        "edges": pd.read_parquet(EDGE_PATH) if EDGE_PATH.exists() else pd.DataFrame(),
-        "embedding": pd.read_parquet(EMBED_PATH),
+        "txs": pd.read_parquet(tx_path),
+        "labels": labels,
+        "features": pd.read_parquet(feature_path),
+        "scores": pd.read_parquet(score_path),
+        "clusters": pd.read_parquet(cluster_path) if cluster_path.exists() else pd.DataFrame(),
+        "edges": pd.read_parquet(edge_path) if edge_path.exists() else pd.DataFrame(),
+        "embedding": pd.read_parquet(embed_path),
     }
 
 
@@ -282,11 +308,17 @@ def network_chart(edges: pd.DataFrame, scores: pd.DataFrame) -> go.Figure:
 
 def main() -> None:
     inject_css()
-    data = load_or_build()
+    available = [s for s, cfg in SOURCES.items() if s == "synthetic" or cfg["tx"].exists()]
+    source = st.sidebar.radio("Data source", available, index=0)
+    st.sidebar.caption(
+        "Real Base traffic appears here once `python -m src.ingest.base <dump>` "
+        "has written `data/raw/base_ingested.parquet`."
+    )
+    data = load_or_build(source)
     embedding = data["embedding"]
     scores = data["scores"]
-    labels = data["labels"].set_index("addr")
-    scored = scores.join(labels, how="left")
+    labels = data["labels"].set_index("addr") if len(data["labels"]) else data["labels"]
+    scored = scores.join(labels, how="left") if len(labels) else scores.assign(policy="unlabelled")
 
     st.title("Agentic Payment Risk")
     st.caption("Behavioural risk intelligence for agent traffic: fingerprint, cluster, score, explain.")
