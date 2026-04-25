@@ -4,22 +4,27 @@
 
 ## Product surface
 
-Working name: **Agentic Payment Risk**.
+Working name: **Agentic Payment Risk Console**.
 
-Single-screen Streamlit app:
-- Top row: transaction count, wallet count, high-risk count, compromise recall, human false-high count.
-- Main visual: 2D behavioural embedding. Colour by risk tier for the pitch; flip to policy only if judges ask how we know the synthetic ground truth.
-- Right rail: risk tier histogram + top suspicious wallets table.
-- Bottom left: wallet inspector with one-line explanation and factor breakdown.
-- Bottom right: coordination graph from pairwise wallet similarity.
+The previous dashboard was visually interesting but under-explained: it led with a scatterplot before telling the viewer what decision the product helps them make. The Polymarket dashboard pattern is better: overview cards, tabbed tables, badges, factor bars, and ranked queues. The redesigned app follows that pattern.
+
+Single-screen analyst console:
+- Dataset switch: **Synthetic stress test** vs **Public x402 Base**.
+- Executive readout: one paragraph that says what the current data proves and what it does not prove.
+- Metrics: transactions, wallets scored, immediate queue, watchlist, and either compromise recall or recipient count.
+- Triage tab: alert queue with wallet, score, tier, action, policy, tx count, concentration, and explanation.
+- Selected case: wallet evidence card plus factor breakdown.
+- Behaviour Map tab: UMAP fingerprint space, deliberately secondary to the triage queue.
+- Coordination tab: wallet graph and cluster table.
+- Model Evidence tab: factor distribution so judges can see this is not an LLM vibes classifier.
 
 ## Demo beat
 
-1. "This is not a toy fraud classifier; it is a behavioural risk layer."
-2. Show humans and agents separating in the embedding.
-3. Click a compromised or colluding wallet and read the explanation out loud: timing drift, gas tightness, counterparty concentration, coordination.
-4. Show the coordination graph to make "agent networks fail as networks" tangible.
-5. Say the next step is replacing synthetic labels with Base/x402 settlements and Forta weak labels.
+1. "This is a triage console for agentic payment risk."
+2. Open on the Synthetic stress test. Show that deterministic agents, compromised drift, and collusion rings enter the queue while humans do not.
+3. Read the selected case explanation out loud: timing, method concentration, counterparty concentration, coordination.
+4. Switch to Public x402 Base. Say: "On real public x402 traffic today, we see watchlist behaviour but no high-severity fraud claim yet. That honesty is the point."
+5. Use the Coordination tab to make compromised-agent contagion concrete.
 
 ## Dashboard commands
 
