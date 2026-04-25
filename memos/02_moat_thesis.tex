@@ -1,0 +1,43 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Moat thesis}\\
+\large Memo 02}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+\section{The three-property test}
+A defensible play in agentic payments must satisfy all three:
+
+\begin{enumerate}
+  \item \textbf{Non-LLM ML.} Statistical / causal / graph methods that frontier labs don't optimise for. They default to fine-tuning a sequence model and lose on this class of problem.
+  \item \textbf{Compounding data asset.} Every agent-month of traffic scored makes replication harder. Stripe Radar took 8 years to be defensible because of this dynamic. Greenfield here.
+  \item \textbf{Vertical risk seat with channel conflict for incumbents.} Stripe Radar can't aggressively flag agent transactions --- Stripe earns the take rate. Visa Decision Intelligence is on a 24-month release cycle. Anthropic is not a fraud company.
+\end{enumerate}
+\section{Why "Apple Pay for agents" fails the test}
+\begin{itemize}
+  \item Thin UX layer; not non-LLM ML.
+  \item No compounding data --- every implementation is identical.
+  \item Stripe / Apple / OpenAI ship it in two weeks.
+\end{itemize}
+\section{Why behavioural risk intelligence passes}
+\begin{itemize}
+  \item \textbf{Math:} non-stationary, sparse-label anomaly detection on graph-structured behavioural data with confounding. Causal inference + graph embeddings + interpretability is the right toolkit. Eugene's research lineage.
+  \item \textbf{Data:} every agent-wallet-month scored becomes labelled training data. Adversarial agents adapt \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ weekly retrain \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ moat deepens.
+  \item \textbf{Channel conflict:} Stripe takes 2.9\% on agent volume; flagging it kills revenue. Visa Decision Intelligence ships quarterly. Sardine et al. trained on human DS; need to retool.
+\end{itemize}
+\section{Real competitors (not Anthropic, not Stripe)}
+Sardine, Alloy, Persona, ComplyAdvantage, Unit21, Hawk:AI. \textbf{None have agent-specific expertise yet.} That's the 12--18 month window.
+
+\section{Why frontier labs lose this fight}
+LLMs are bad at non-stationary statistical anomaly detection on structured behavioural data with sparse labels and adversarial drift. The published evidence (across credit-card fraud, AML, market-manipulation detection) is consistent: fine-tuned sequence models underperform classical statistical + graph methods in this regime. Frontier teams default to "fine-tune transformer on transactions" and lose.
+
+\section{Eventual buyer}
+Stripe / Visa / Adyen / Sardine. Acquisition is the right outcome --- by the time it happens, we own the labelled-fraud dataset for the agent era.
+
+\end{document}

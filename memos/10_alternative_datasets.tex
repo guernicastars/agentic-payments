@@ -1,0 +1,106 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Alternative datasets}\\
+\large Memo 10}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+Purpose: keep the demo robust if x402/Base volume is thin, if Coinbase data lands late, or if we need a second validation frame.
+
+\section{Priority A --- closest to the hackathon claim}
+\begin{enumerate}
+  \item \textbf{Base + x402 facilitator settlements}
+\end{enumerate}
+\begin{itemize}
+  \item Source: Coinbase x402 facilitator docs and Base x402 seller docs.
+  \item Why: closest behavioural distribution to agentic payments; supports the pitch directly.
+  \item Label plan: known facilitator / x402 settlement addresses as agent-positive; sampled Base EOAs as human baseline; merchants/receivers as counterparty features, not labels.
+  \item Risk: exact facilitator on-chain address discovery may need x402.watch / explorer validation.
+  \item Links: https://docs.cdp.coinbase.com/x402/core-concepts/facilitator, https://docs.base.org/ai-agents/payments/accepting-payments
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{Base / Ethereum public chain history}
+\end{enumerate}
+\begin{itemize}
+  \item Source: Google Cloud Blockchain Analytics / BigQuery public blockchain tables, plus explorer exports where needed.
+  \item Why: broad human + bot transaction baseline, useful for calibrating gas, timing, and counterparty distributions.
+  \item Label plan: unlabeled baseline only; combine with known contract categories (DEX routers, bridges, stablecoin contracts).
+  \item Risk: Base availability/table names need confirmation in the active Google dataset; Ethereum is stable but less agentic-payment-specific.
+  \item Links: https://docs.cloud.google.com/blockchain-analytics/docs/dataset-ethereum, https://cloud.google.com/blog/products/data-analytics/data-for-11-more-blockchains-in-bigquery-public-datasets
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{Forta alerts as weak labels}
+\end{enumerate}
+\begin{itemize}
+  \item Source: Forta alert API / ML resources.
+  \item Why: converts real security detections into weak positive labels for compromised/drifted wallets.
+  \item Label plan: wallets appearing in critical/high confidence exploit, phishing, approval-drain, or anomalous-transfer alerts become weak-positive; chain baseline remains weak-negative.
+  \item Risk: alert taxonomy may not map cleanly to "agent compromise"; use as security validation, not primary agent/human split.
+  \item Links: https://docs.forta.network/en/latest/network-overview/, https://docs.forta.network/en/latest/ml-data-resources/
+\end{itemize}
+\section{Priority B --- good for graph/fraud validation}
+\begin{enumerate}
+  \item \textbf{Elliptic Bitcoin dataset}
+\end{enumerate}
+\begin{itemize}
+  \item Source: Elliptic / Kaggle public labeled Bitcoin transaction graph.
+  \item Why: canonical licit/illicit crypto graph benchmark; lets us show the model family ports to AML.
+  \item Label plan: illicit vs licit graph labels; ignore agent-specific features, keep temporal/counterparty/graph features.
+  \item Risk: Bitcoin UTXO semantics differ from Base account model, so this validates graph-risk muscle, not agentic payment rails.
+  \item Links: https://www.kaggle.com/datasets/ellipticco/elliptic-data-set/data, https://www.elliptic.co/blog/elliptic-dataset-cryptocurrency-financial-crime
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{Elliptic++ / Elliptic2 research datasets}
+\end{enumerate}
+\begin{itemize}
+  \item Source: published temporal graph extensions.
+  \item Why: stronger graph structure and wallet/address interactions than original Elliptic; useful after the hackathon.
+  \item Label plan: illicit address / subgraph labels.
+  \item Risk: may require request/download work; not a Friday-night dependency.
+  \item Links: https://arxiv.org/abs/2306.06108, https://arxiv.org/abs/2404.19109
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{Address poisoning / phishing datasets}
+\end{enumerate}
+\begin{itemize}
+  \item Source: CMU / USENIX-style address-poisoning studies and Ethereum phishing datasets.
+  \item Why: directly resembles compromised-agent and adversarial-counterparty behaviours.
+  \item Label plan: known phishing/poisoning txs as adversarial positives; normal transfers as baseline.
+  \item Risk: dataset access may be slower than using Forta weak labels.
+  \item Links: https://www.cylab.cmu.edu/news/2026/01/07-blockchain-address-poisoning.html, https://arxiv.org/abs/2409.02386
+\end{itemize}
+\section{Priority C --- useful only for storytelling / baseline ML}
+\begin{enumerate}
+  \item \textbf{European credit-card fraud dataset}
+\end{enumerate}
+\begin{itemize}
+  \item Source: Kaggle two-day anonymised card transactions.
+  \item Why: classic fraud baseline with extreme class imbalance; useful for a slide explaining why old fraud datasets are the wrong distribution.
+  \item Label plan: fraud class as positive; do not use for wallet graph claims.
+  \item Risk: PCA-anonymised features mean no behavioural interpretability; not agentic or on-chain.
+  \item Link: https://www.kaggle.com/datasets/ghnshymsaini/credit-card-fraud-detection-dataset
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{Internal/synthetic transaction policies}
+\end{enumerate}
+\begin{itemize}
+  \item Source: our generator.
+  \item Why: controlled ground truth for deterministic agents, payment bots, compromised drift, and collusion rings.
+  \item Label plan: exact policy labels.
+  \item Risk: must be framed honestly as synthetic validation; combine with at least one real chain slice for credibility.
+\end{itemize}
+\section{Recommended Saturday sequence}
+\begin{enumerate}
+  \item Keep the synthetic generator as the ground-truth demo path.
+  \item Pull Base/x402 settlements first; if identifiable volume is usable, run the same feature/scoring pipeline and show it as "real traffic overlay".
+  \item If x402 is thin, pull Forta security alerts on Base/Ethereum for compromised-wallet validation.
+  \item Mention Elliptic only as the longer-term AML expansion path.
+\end{enumerate}
+
+\end{document}

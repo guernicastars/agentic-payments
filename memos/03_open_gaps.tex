@@ -1,0 +1,63 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Open gaps in agentic payments}\\
+\large Memo 03}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+Compact list of unsolved problems by layer. Moat profile: \textbf{B} = good for Bloomsbury; M = mid; X = bad / commoditising.
+
+\section{Identity \& delegation}
+\begin{itemize}
+  \item Persistent agent identity across protocols --- no Layer 0 --- \textbf{M} (standards battle, hyperscaler-owned)
+  \item Cryptographic delegation chains across A\textbackslash{}\$\textbackslash{}to\textbackslash{}\$B\textbackslash{}\$\textbackslash{}to\textbackslash{}\$C calls --- \textbf{X} (PKI plumbing; Entrust et al. own it)
+  \item Portable agent reputation across platforms --- \textbf{B} (behavioural angle, our wedge)
+  \item Distinguishing legitimate from malicious automated traffic --- \textbf{B}
+\end{itemize}
+\section{Trust \& authorisation}
+\begin{itemize}
+  \item Mandate scope verification (was the action within user intent?) --- \textbf{B}
+  \item Multi-step intent reconstruction --- M
+  \item Real-time policy compliance enforcement --- X (symbolic, low ML moat)
+\end{itemize}
+\section{Risk \& fraud --- our cluster}
+\begin{itemize}
+  \item Fraud detection on agent behavioural distributions --- \textbf{B (strong)}
+  \item Rogue vs. compromised vs. malicious agent classification --- \textbf{B}
+  \item Anomaly detection without human baselines --- \textbf{B}
+  \item Adversarial agent detection (agents that game scoring systems) --- \textbf{B (very strong)} --- causal-interp work is literal SOTA here
+  \item Coordinated multi-agent fraud / collusion / laundering --- \textbf{B} --- graph ML directly applies
+\end{itemize}
+\section{Disputes \& liability}
+\begin{itemize}
+  \item Causal liability attribution under ambiguous intent --- B (harder demo)
+  \item Evidence synthesis for agent disputes --- M
+  \item Chargeback pricing for agent transactions --- M
+\end{itemize}
+\section{Settlement}
+\begin{itemize}
+  \item Cross-rail routing optimisation --- M (bandit; others can do)
+  \item Stablecoin / fiat hybrid orchestration --- X (Crossmint, Privy)
+  \item International FX optimisation --- X
+\end{itemize}
+\section{Observability \& compliance}
+\begin{itemize}
+  \item Audit trail synthesis at machine speed --- X
+  \item AML / sanctions screening for agent flows --- M (regulated, slow)
+  \item Causal explanation of flagged transactions --- \textbf{B}
+\end{itemize}
+\section{Commerce-specific}
+\begin{itemize}
+  \item Counterparty legitimacy verification --- M
+  \item Negotiation protocol standardisation --- X (standards battle)
+\end{itemize}
+\section{What we collapse to}
+The B cluster is one product: \textbf{behavioural risk intelligence layer for agent traffic}. Fraud is the wedge. Reputation, dispute evidence, AML, adversarial detection all sit downstream as the data asset compounds.
+
+\end{document}

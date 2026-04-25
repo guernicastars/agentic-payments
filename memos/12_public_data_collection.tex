@@ -1,0 +1,131 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Public data collection}\\
+\large Memo 12}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+\section{Easy-ish data collected}
+No API keys needed.
+
+\begin{enumerate}
+  \item \textbf{x402.watch facilitator directory}
+\end{enumerate}
+\begin{itemize}
+  \item Collected into \code{data/raw/x402_facilitators.parquet}.
+  \item Tracked sample: \code{data/raw/sample_x402_facilitators.csv}.
+  \item Use: facilitator URL list, public metadata, quick target list for \code{/supported} probes.
+  \item Source: https://www.x402.watch/facilitators
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{Coinbase x402 facilitator addresses}
+\end{enumerate}
+\begin{itemize}
+  \item Collected into \code{data/raw/x402_addresses.parquet}.
+  \item Tracked sample: \code{data/raw/sample_x402_addresses.csv}.
+  \item Use: Coinbase address watchlist for Base Blockscout queries.
+  \item Source: https://x402.watch/facilitator/coinbase
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{OpenX402 \code{/supported} endpoint}
+\end{enumerate}
+\begin{itemize}
+  \item Collected into \code{data/raw/x402_supported_probe.parquet}.
+  \item Found active Base signer \code{0x97316FA4730BC7d3B295234F8e4D04a0a4C093e8} and Base USDC asset \code{0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913}.
+  \item Source: https://facilitator.openx402.ai/supported
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{Base Blockscout no-key txlist}
+\end{enumerate}
+\begin{itemize}
+  \item Collected into \code{data/raw/base_facilitator_txlist.parquet}.
+  \item Normalized into \code{data/processed/real_x402_base.parquet}.
+  \item Cooked payment-only rows into \code{data/processed/real_x402_payments.parquet}.
+  \item Tracked samples:
+  \item \code{data/processed/sample_real_x402_base.csv}
+  \item \code{data/processed/sample_real_x402_payments.csv}
+  \item \code{data/processed/sample_real_x402_scores.csv}
+  \item Source: https://base.blockscout.com/api
+\end{itemize}
+\section{Current pull summary}
+At first pull:
+
+\begin{itemize}
+  \item 7,512 Base facilitator-address transactions.
+  \item 437 decoded x402/EIP-3009 USDC payment rows.
+  \item 116 unique payer wallets.
+  \item 19 unique recipient wallets.
+  \item 116 payer wallets cooked through the scorer: 65 medium, 51 low, 0 high.
+\end{itemize}
+We decode \code{0xe3ee160e} calls to Base USDC as EIP-3009-style \code{transferWithAuthorization} rows:
+
+\begin{itemize}
+  \item payer address
+  \item recipient address
+  \item USDC amount
+  \item validity window
+  \item authorization nonce
+  \item facilitator/signer address
+\end{itemize}
+This is the first real-data overlay for the synthetic demo.
+
+Committed artifacts for cofounder access:
+
+\begin{itemize}
+  \item \code{data/raw/x402_facilitators.parquet}
+  \item \code{data/raw/x402_addresses.parquet}
+  \item \code{data/raw/x402_supported_probe.parquet}
+  \item \code{data/processed/real_x402_base.parquet}
+  \item \code{data/processed/real_x402_payments.parquet}
+  \item \code{data/processed/real_x402_features.parquet}
+  \item \code{data/processed/real_x402_scores.parquet}
+  \item \code{data/processed/real_x402_embedding.parquet}
+\end{itemize}
+The larger raw Blockscout txlist remains ignored and reproducible via \code{python -m src.ingest.public_x402}.
+
+\section{Commands}
+\begin{lstlisting}
+python -m src.ingest.public_x402
+python -m src.pipeline_public
+\end{lstlisting}
+\code{src.ingest.public_x402} fetches and normalizes public data. \code{src.pipeline_public} cooks it through the same feature/scoring/embedding stack used for the synthetic demo.
+
+\section{Not easy today / cofounder queue}
+\begin{enumerate}
+  \item \textbf{Dune x402 dashboards}
+\end{enumerate}
+\begin{itemize}
+  \item Likely useful for volume and aggregate trend, but requires either manual dashboard export or Dune API key.
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{BigQuery Blockchain Analytics}
+\end{enumerate}
+\begin{itemize}
+  \item Good for broader Base/Ethereum baseline, but requires GCP auth/project setup and table-name confirmation.
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{BaseScan / Etherscan v2}
+\end{enumerate}
+\begin{itemize}
+  \item Easy technically, but needs API key for stable higher-volume pulls.
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{Forta alerts}
+\end{enumerate}
+\begin{itemize}
+  \item Good weak labels for compromised/exploit wallets, but needs alert taxonomy work before cooking.
+\end{itemize}
+\begin{enumerate}
+  \item \textbf{x402scan internal API}
+\end{enumerate}
+\begin{itemize}
+  \item Public page is visible, but easy API endpoint was not obvious from a quick probe. Worth inspecting in browser/devtools if more x402-specific history is needed.
+\end{itemize}
+
+\end{document}

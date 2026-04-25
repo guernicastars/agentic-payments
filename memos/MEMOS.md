@@ -1,33 +1,51 @@
 # Memo Index
 
-Append-only build log. One memo per topic; keep entries dated. New entries on top.
+Append-only build log. Every memo is shipped as **`.md` (source)**, **`.tex` (typeset source)**, and **`.pdf` (built artefact)** so reviewers and the cofounder can read the rendered version directly. Memos with experimental content cite hypothesis numbers (H1--H6) validated in `experiments/` and tabulated in `results/tables/hypothesis_results.csv`.
+
+Build command: `bash memos/build.sh` (builds all PDFs) or `bash memos/build.sh <basename>` (one).
 
 ## Strategy
 
-- [00_pitch_script.md](00_pitch_script.md) — 2-minute pitch beat-by-beat with stopwatch timing, Q&A answers, post-pitch follow-up.
-- [01_pitch_framing.md](01_pitch_framing.md) — Two-minute pitch, the four-beat structure, Blomfield rubric.
-- [02_moat_thesis.md](02_moat_thesis.md) — Why behavioural risk intelligence is the defensible wedge.
-- [03_open_gaps.md](03_open_gaps.md) — Compact list of unsolved problems in agentic payments, marked by moat profile.
+- [00_pitch_script.md](00_pitch_script.md) / [.tex](00_pitch_script.tex) / [.pdf](00_pitch_script.pdf) — 2-minute pitch beat-by-beat with stopwatch timing, Q&A answers, post-pitch follow-up.
+- [01_pitch_framing.md](01_pitch_framing.md) / [.tex](01_pitch_framing.tex) / [.pdf](01_pitch_framing.pdf) — Two-minute pitch, the four-beat structure, Blomfield rubric.
+- [02_moat_thesis.md](02_moat_thesis.md) / [.tex](02_moat_thesis.tex) / [.pdf](02_moat_thesis.pdf) — Why behavioural risk intelligence is the defensible wedge.
+- [03_open_gaps.md](03_open_gaps.md) / [.tex](03_open_gaps.tex) / [.pdf](03_open_gaps.pdf) — Compact list of unsolved problems in agentic payments.
 
 ## Assets & data
 
-- [04_polymarket_assets.md](04_polymarket_assets.md) — Reusable code from polymarket repo, file-by-file.
-- [05_data_plan.md](05_data_plan.md) — x402 / Base data sourcing plan, fallbacks, schema.
-- [10_alternative_datasets.md](10_alternative_datasets.md) — Backup datasets and weak-label sources for validation.
-- [12_public_data_collection.md](12_public_data_collection.md) — What we could collect without keys (live x402 track via x402.watch + Blockscout).
-- [13_methodology_memo.pdf](13_methodology_memo.pdf) / [tex](13_methodology_memo.tex) — Fraud detection literature, incumbent methods, and exact methodology.
-- [14_traditional_payments_generalisation.md](14_traditional_payments_generalisation.md) — How the x402 risk engine generalises to Stripe, Shopify, Visa/Mastercard, PSPs, and banks.
-- [15_data_integration_plan.md](15_data_integration_plan.md) — Dune snapshots integration architecture (parallel to memo 12 live track).
-- [16_snapshot_findings.md](16_snapshot_findings.md) — Pitch numbers from Dune snapshots (Jun/Jan/Apr trend, locked).
-- [17_real_data_quality.md](17_real_data_quality.md) — Real-data caveats and methodology notes (Oct excluded).
+- [04_polymarket_assets.md](04_polymarket_assets.md) / [.tex](04_polymarket_assets.tex) / [.pdf](04_polymarket_assets.pdf) — Reusable code from polymarket repo, file-by-file.
+- [05_data_plan.md](05_data_plan.md) / [.tex](05_data_plan.tex) / [.pdf](05_data_plan.pdf) — x402 / Base data sourcing plan, fallbacks, schema.
+- [10_alternative_datasets.md](10_alternative_datasets.md) / [.tex](10_alternative_datasets.tex) / [.pdf](10_alternative_datasets.pdf) — Backup datasets and weak-label sources.
+- [12_public_data_collection.md](12_public_data_collection.md) / [.tex](12_public_data_collection.tex) / [.pdf](12_public_data_collection.pdf) — No-key live x402 collection (x402.watch + Blockscout).
+- [15_data_integration_plan.md](15_data_integration_plan.md) / [.tex](15_data_integration_plan.tex) / [.pdf](15_data_integration_plan.pdf) — Dune snapshots integration architecture (parallel to memo 12 live track).
+
+## Empirically validated (with hypothesis tests)
+
+- [07_synthetic_design.md](07_synthetic_design.md) / [.tex](07_synthetic_design.tex) / [.pdf](07_synthetic_design.pdf) — Synthetic generator design **+ H5** (silhouette 0.35, RF 5-fold acc 99.6%, macro-F1 0.997).
+- [08_features_spec.md](08_features_spec.md) / [.tex](08_features_spec.tex) / [.pdf](08_features_spec.pdf) — 36-feature behavioural fingerprint **+ H6** (35/36 features at MI ≥ 0.05).
+- [13_methodology_memo.tex](13_methodology_memo.tex) / [.pdf](13_methodology_memo.pdf) — Fraud detection literature, incumbent methods, and exact methodology.
+- [16_snapshot_findings.md](16_snapshot_findings.md) / [.tex](16_snapshot_findings.tex) / [.pdf](16_snapshot_findings.pdf) — Pitch numbers locked **+ H1, H2, H4** (100× compression with 95% bootstrap CI [10, 1000]; Mann-Whitney p=1.4e-44; population +41% Jun→Apr after Oct exclusion).
+- [17_real_data_quality.md](17_real_data_quality.md) / [.tex](17_real_data_quality.tex) / [.pdf](17_real_data_quality.pdf) — Quality caveats **+ H3** (Oct top-1 share 99.98%; gap-to-top-2 0.9997 vs 0.62 mean).
 
 ## Build
 
-- [06_today_plan.md](06_today_plan.md) — Hour-by-hour Friday plan and Saturday handoff.
-- [07_synthetic_design.md](07_synthetic_design.md) — Policy library design for synthetic agent traffic.
-- [08_features_spec.md](08_features_spec.md) — Behavioural fingerprint feature list.
-- [11_dashboard_demo.md](11_dashboard_demo.md) — Demo dashboard narrative and screen plan.
+- [06_today_plan.md](06_today_plan.md) / [.tex](06_today_plan.tex) / [.pdf](06_today_plan.pdf) — Friday build log (executed).
+- [11_dashboard_demo.md](11_dashboard_demo.md) / [.tex](11_dashboard_demo.tex) / [.pdf](11_dashboard_demo.pdf) — Demo dashboard narrative and screen plan.
+- [14_traditional_payments_generalisation.md](14_traditional_payments_generalisation.md) / [.tex](14_traditional_payments_generalisation.tex) / [.pdf](14_traditional_payments_generalisation.pdf) — How the x402 risk engine generalises to Stripe, Visa, PSPs, banks.
 
 ## Logistics
 
-- [09_hackathon_logistics.md](09_hackathon_logistics.md) — Times, venue, judging signal.
+- [09_hackathon_logistics.md](09_hackathon_logistics.md) / [.tex](09_hackathon_logistics.tex) / [.pdf](09_hackathon_logistics.pdf) — Times, venue, judging signal.
+
+## Experimental code
+
+| Hypothesis | Memo | Code | Verdict |
+|---|---|---|---|
+| H1: median tx compression ≥ 10× Jun → Apr | 16 | `experiments/snapshot_validation.py` | supported (CI [10×, 1000×], MWU p=1.4e-44) |
+| H2: payer population strictly increases (excl. Oct) | 16 | same | supported under exclusion |
+| H3: Oct 2025 bipartite-degenerate | 17 | same | supported (top-1=99.98%, gap-to-top-2 z=1.82) |
+| H4: mean tx misleading vs median | 16 | same | supported (skew 3.6–19.7, top-5% capture 50–99.7% of volume) |
+| H5: synthetic policies separate in 36-feature space | 07 | `experiments/synthetic_separation.py` | supported (silhouette 0.35; RF acc 99.6%) |
+| H6: ≥ 60% of features carry MI ≥ 0.05 | 08 | same | supported (97% of features clear threshold) |
+
+Run: `python -m experiments.snapshot_validation && python -m experiments.synthetic_separation`.

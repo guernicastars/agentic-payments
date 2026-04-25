@@ -1,0 +1,36 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Pitch framing}\\
+\large Memo 01}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\textbf{Date:} 2026-04-25
+
+\section{The two-minute pitch (working draft)}
+\begin{quote}
+Visa, Mastercard, and Stripe Radar built fraud detection on a billion \emph{human} transactions. They detect anomalies relative to a human behavioural baseline --- geography, time-of-day, value bands. AI agents transact a thousand times more often, optimise gas to the wei, have no spatial pattern, and behave non-stationarily as the underlying models update. Existing fraud models are blind to them.  We pulled 100,000 recent Base L2 transactions and built behavioural embeddings --- here's the cluster plot. Agents and humans separate cleanly. Within the agent cluster, our anomaly detector flags compromised wallets the existing systems miss, and our interpretability layer gives a one-sentence reason for every flag.  We're Bloomsbury Tech --- a quantitative ML lab that publishes on causal inference and graph ML. \textbf{This is a statistical problem, not an LLM problem.} Stripe Radar can't ship this because they make money on agent transactions; Visa is on a 24-month release cycle; Sardine, Persona, Alloy were built for human-only data. We have an 18-month structural lead, and every month of agent traffic compounds our model.  We start as the fraud signal layer for one mid-market PSP or acquirer. We expand into agent reputation scoring, AML for stablecoin flows, and dispute evidence generation. The eventual buyer is Stripe, Visa, Adyen, or Sardine --- but by then we own the data.
+\end{quote}
+\section{Four beats}
+\begin{enumerate}
+  \item \textbf{Precise gap.} Existing fraud models trained on human distributions; agents are structurally different.
+  \item \textbf{Demo evidence.} UMAP cluster plot + anomaly explanations on real(ish) Base data.
+  \item \textbf{Moat.} Statistical not LLM; data compounds; incumbents structurally slow.
+  \item \textbf{Expansion.} Fraud \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ reputation \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ AML \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ disputes \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ buyer is the network.
+\end{enumerate}
+\section{Blomfield rubric (what he scores)}
+\begin{itemize}
+  \item Precise problem statement (no vision waffle)
+  \item An \emph{unusual} insight (the human-baseline fraud-model blindness)
+  \item Evidence of velocity (working demo in 8 hours)
+  \item Defensible moat (not LLM; data compounds; channel conflict for incumbents)
+  \item Founder credibility (ICML-grade ML lab, not a vibe-coded MVP)
+\end{itemize}
+\section{Open framing decision}
+"Fraud detection" = easier pitch, smaller TAM. "Behavioural risk intelligence for agent traffic" = same product, bigger headroom (fraud, reputation, AML, disputes). \textbf{Default: pitch the broader frame, demo the fraud slice.} Blomfield watched Monzo go prepaid-card \textbackslash{}\$\textbackslash{}to\textbackslash{}\$ full bank; he'll track the expansion arc.
+
+\end{document}

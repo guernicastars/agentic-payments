@@ -1,0 +1,60 @@
+% Shared preamble for all agentic-payments memos.
+% Usage:
+%   \documentclass[11pt]{article}
+%   \input{_preamble}
+%   \title{...} \author{...} \date{...}
+%   \begin{document} \maketitle ... \end{document}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  citecolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\setlist[itemize]{topsep=3pt,itemsep=2pt,leftmargin=1.4em}
+\setlist[enumerate]{topsep=3pt,itemsep=2pt,leftmargin=1.7em}
+
+\definecolor{codebg}{RGB}{246,247,242}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{black!12},
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+}
+
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\risk}{\operatorname{risk}}
+
+% Experimental result callout (used by data-driven memos).
+\newenvironment{result}
+  {\par\medskip\noindent\textbf{Result.}\quad\itshape}
+  {\upshape\par\medskip}
+\newenvironment{hypothesis}
+  {\par\medskip\noindent\textbf{Hypothesis.}\quad}
+  {\par\medskip}
+\newenvironment{experiment}
+  {\par\medskip\noindent\textbf{Experiment.}\quad}
+  {\par\medskip}

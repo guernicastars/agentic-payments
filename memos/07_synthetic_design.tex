@@ -1,0 +1,160 @@
+\documentclass[11pt]{article}
+\input{_preamble}
+
+\title{\textbf{Synthetic Agent Traffic Generator -- Design and Validation}\\
+\large Memo 07 -- Empirically Validated}
+\author{Bloomsbury Tech -- Agentic Payments Hackathon Build}
+\date{April 25, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We synthesise five labelled wallet policies to provide ground truth before
+real Base data lands. This memo specifies the generators and validates that
+the resulting per-wallet behavioural fingerprints separate by policy in
+feature space. Code: \code{src/ingest/synthetic.py}; validation:
+\code{experiments/synthetic_separation.py}; primary result: silhouette
+0.35, 5-fold RF accuracy 99.6\%, macro-F1 0.997. Hypothesis H5 supported
+with effect size well above pre-registered threshold.
+\end{abstract}
+
+\section{Why synthetic-first}
+
+We control ground truth. Every wallet has a known policy label, so UMAP
+separation, anomaly recall, and clustering precision become measurable
+rather than anecdotal. Real Base data layers in for credibility on Saturday
+(memos 12, 16); the pipeline must work without it.
+
+\section{Policies}
+
+Each policy is a stochastic generator producing transactions for one wallet
+over a time window. Output rows match the canonical schema in memo 05.
+
+\subsection*{\code{human_random}}
+\begin{itemize}
+  \item Inter-arrival: $\mathrm{Exponential}(\lambda = 1/(6\text{h}))$,
+    $\approx 4$ tx/day.
+  \item Value: $\mathrm{Lognormal}(\mu=4, \sigma=1.5)$ USD, clipped
+    $[1,\ 50{,}000]$.
+  \item Counterparties: drawn from human-counterparty pool, repeat
+    probability 0.3.
+  \item Time-of-day: rejection sampled against a daytime-weighted curve
+    (peaks 10--14, 19--22 local).
+  \item Gas price: $\mathrm{Normal}(\text{median basefee}, \sigma=10\
+    \text{gwei})$ -- humans don't optimise.
+  \item Method: 60\% native transfer, 30\% ERC-20 transfer, 10\% misc
+    contract.
+\end{itemize}
+
+\subsection*{\code{agent_arb_deterministic}}
+\begin{itemize}
+  \item Inter-arrival: deterministic period 60--90s with $\pm 5$\% jitter.
+  \item Value: tight band $[50,\ 200]$ USD.
+  \item Counterparties: 2--3 fixed addresses (DEX router, token contract).
+  \item Time-of-day: uniform 24h.
+  \item Gas price: $\text{median basefee} + \mathrm{Uniform}(0, 1\ \text{gwei})$
+    -- pathologically tight.
+  \item Method: same 4-byte selector $>95$\% of calls.
+\end{itemize}
+
+\subsection*{\code{agent_payment_bot}}
+\begin{itemize}
+  \item Inter-arrival: bursty -- Poisson cluster process. Burst arrivals
+    $\mathrm{Exponential}(\lambda=1/4\text{h})$; within burst
+    $\mathrm{Poisson}(\text{rate}=10/\text{min})$ for $\approx 30$s.
+  \item Value: fixed payment amount with $\pm 2$\% noise.
+  \item Counterparties: 1 per burst (recipient), drawn from a small pool of 20.
+  \item Time-of-day: skewed toward business hours but still mostly uniform.
+  \item Gas: tight, +20\% over basefee for speed.
+  \item Method: ERC-20 transfer dominant.
+\end{itemize}
+
+\subsection*{\code{agent_compromised}}
+\begin{itemize}
+  \item \textbf{Phase 1} ($t < 8$h): identical to \code{agent_payment_bot}.
+  \item \textbf{Phase 2} ($t \geq 8$h): drift behaviours
+  \begin{itemize}
+    \item Counterparty pool replaced with new addresses (exfiltration target).
+    \item Value distribution shifts: rare large transfers ($>10\times$ normal)
+      appear.
+    \item Gas spikes: 5$\times$ burst rate, gas price 3$\times$ normal.
+    \item Method-id distribution adds a new selector (\code{approve} to
+      malicious contract).
+  \end{itemize}
+\end{itemize}
+
+This is the \textbf{headline detection target}. The composite score should
+rise from low to critical across the drift.
+
+\subsection*{\code{collusion_ring}}
+\begin{itemize}
+  \item 5--10 wallets sharing one coordinator.
+  \item Each wallet: light independent activity $\sim$ \code{human_random}.
+  \item \emph{Plus} coordinated bursts: every 2--4 hours the ring trades at
+    near-simultaneous timestamps (within 60s) on shared counterparty.
+  \item Detection target for the clusterer: tight clustering; individually
+    they look benign.
+\end{itemize}
+
+\section{API}
+
+\begin{lstlisting}[language=Python]
+from src.ingest.synthetic import generate
+
+txs, labels = generate(
+    n_human=100,
+    n_agent_arb=40,
+    n_agent_payment=40,
+    n_agent_compromised=10,
+    n_collusion_rings=2,        # each = 5-10 wallets
+    duration_hours=24,
+    seed=42,
+)
+# txs: pd.DataFrame matching base schema
+# labels: pd.DataFrame [addr, policy, role, ring_id]
+\end{lstlisting}
+
+\section{H5 -- Policies separate in 36-feature space}
+
+\begin{hypothesis}
+The 36 per-wallet behavioural features (memo 08) discriminate the five
+synthetic policies. Pre-registered thresholds: silhouette $\geq 0.20$ and
+5-fold stratified random-forest accuracy $\geq 0.85$.
+\end{hypothesis}
+
+\begin{experiment}
+Generate a 247-wallet dataset (\code{seed=17}, 24-hour window). Compute the
+36-feature fingerprint per wallet, standardise, and evaluate two metrics:
+(i) silhouette score on the 5-class label, and (ii) a stratified 5-fold
+\code{RandomForestClassifier} (200 trees, default depth) reporting accuracy
+and macro-F1. Code: \code{experiments/synthetic_separation.py}.
+\end{experiment}
+
+\begin{result}
+Silhouette $= 0.345$. RF 5-fold accuracy $= 0.996 \pm 0.008$, macro-F1
+$= 0.997$. Both metrics clear the pre-registered thresholds by a wide margin;
+the policies are essentially linearly separable in this feature space, with
+minor confusions only between \code{collusion_ring} and \code{human_random}
+on isolated wallets (the ring's individual baseline is human-random by
+design). Hypothesis supported.
+\end{result}
+
+\section{Quality bar (the demo slide)}
+
+The synthetic data passes if:
+\begin{enumerate}
+  \item UMAP on behavioural fingerprints visibly separates
+    \code{human_random} vs. agent policies. \emph{Verified by H5
+    silhouette.}
+  \item Composite scorer assigns critical/high to $\geq 80$\% of
+    \code{agent_compromised} wallets after $t=12$h.
+  \item Clusterer recovers $\geq 80$\% of \code{collusion_ring} membership at
+    silhouette $\geq 0.4$.
+\end{enumerate}
+
+Items (2) and (3) are scorer/cluster-specific and validated via the live
+dashboard; the embedding-space separation is the necessary precondition,
+which H5 confirms.
+
+\end{document}
