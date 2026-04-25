@@ -37,6 +37,9 @@ Build command: `bash memos/build.sh` (builds all PDFs) or `bash memos/build.sh <
 ## Logistics
 
 - [09_hackathon_logistics.md](09_hackathon_logistics.md) / [.tex](09_hackathon_logistics.tex) / [.pdf](09_hackathon_logistics.pdf) — Times, venue, judging signal.
+- [19_pitch_plan.md](19_pitch_plan.md) — Saturday execution plan: rehearsal cadence, lead-dataset decision, T-30/T-5 checklists, in-pitch contingencies, post-pitch follow-up.
+- [20_vc_deck_plan.md](20_vc_deck_plan.md) — VC pitch deck construction plan: 14-slide structure with TAM/SAM/SOM derivation, business model, GTM, competition map, and ask. Saturday leave-behind + full deck the following week.
+- [21_market_research.md](21_market_research.md) — Sourced market research: TAM ($67B → $244B), SAM ($170M-$1.7B agent fraud by 2030), competitive landscape (Sardine $660M, Persona $2B, Feedzai $2B, Stripe-Bridge $1.1B), x402 decline context, target customer list, M&A comps. Replaces placeholder figures in memo 20.
 
 ## Experimental code
 
