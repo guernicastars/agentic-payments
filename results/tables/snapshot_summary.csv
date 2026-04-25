@@ -1,0 +1,5 @@
+snapshot,date_label,tx_count,unique_payers,unique_merchants,median_tx_usd,mean_tx_usd,volume_usd
+early_adopters,Jun 2025,151,39,29,0.1,124.02946606622517,18728.449376
+post_linux_fdn,Oct 2025,89,53,5,108.0,685.8839689438203,61043.673236
+post_stripe,Jan 2026,351,42,53,0.01,4.172515717948718,1464.553017
+current,Apr 2026,400,55,24,0.001,1.6281544624999997,651.2617849999999

@@ -89,16 +89,35 @@ def run_pipeline(
     return {"transactions": tx_path, "labels": label_path, **artefacts}
 
 
+REQUIRED_TX_COLS = {
+    "from_addr", "to_addr", "value_usd", "block_time_s",
+    "gas_used", "gas_price_gwei", "method_id", "success",
+}
+
+
 def run_pipeline_from_parquet(
     tx_path: str | Path,
     label_path: str | Path | None = None,
     processed_dir: str | Path = "data/processed_base",
 ) -> dict[str, Path]:
     """Run the downstream feature/score/embed pipeline on an already-ingested
-    transaction parquet (e.g. from src.ingest.base).
+    transaction parquet in canonical schema (e.g. from `src.ingest.base.normalize`
+    or `src.ingest.public_x402.normalise_x402_txs`).
+
+    Raises ValueError with a clear remediation hint if the input is not in
+    canonical schema (e.g. raw Dune snapshot parquets at
+    data/raw/x402_snapshot_*.parquet have only `block_time, payer, merchant,
+    value_usd` and need to go through an ingest module first).
     """
     tx_path = Path(tx_path)
     txs = pd.read_parquet(tx_path)
+    missing = REQUIRED_TX_COLS - set(txs.columns)
+    if missing:
+        raise ValueError(
+            f"{tx_path} is not in canonical schema. Missing columns: {sorted(missing)}.\n"
+            "Run a raw dump through `python -m src.ingest.base <file>` (BaseScan-style) "
+            "or `python -m src.ingest.public_x402` (live Blockscout) first."
+        )
     labels = (
         pd.read_parquet(label_path)
         if label_path and Path(label_path).exists()
@@ -116,7 +135,15 @@ def run_pipeline_from_parquet(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--source",
+        type=str,
+        default="synthetic",
+        help="'synthetic' (default) or path to a pre-ingested transactions parquet",
+    )
     parser.add_argument("--out_dir", type=str, default="data")
+    parser.add_argument("--labels", type=str, default=None, help="optional labels parquet (real-data path)")
+    parser.add_argument("--processed_dir", type=str, default=None, help="override processed dir for real-data path")
     parser.add_argument("--hours", type=float, default=24.0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n_human", type=int, default=100)
@@ -126,7 +153,19 @@ def main() -> None:
     parser.add_argument("--n_collusion_rings", type=int, default=2)
     args = parser.parse_args()
 
-    paths = run_pipeline(**vars(args))
+    if args.source != "synthetic":
+        processed_dir = args.processed_dir or f"{args.out_dir}/processed_real"
+        paths = run_pipeline_from_parquet(
+            tx_path=args.source,
+            label_path=args.labels,
+            processed_dir=processed_dir,
+        )
+    else:
+        gen_kwargs = {
+            k: v for k, v in vars(args).items()
+            if k not in {"source", "labels", "processed_dir"}
+        }
+        paths = run_pipeline(**gen_kwargs)
     print("built demo artifacts:")
     for name, path in paths.items():
         print(f"  {name:14} {path}")

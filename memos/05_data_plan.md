@@ -26,7 +26,7 @@ columns = [
     "value_wei",      # int (native ETH)
     "value_usd",      # float (token-aware, post-decode)
     "gas_used",       # int
-    "gas_price",      # int (wei)
+    "gas_price_gwei", # float (gwei)
     "method_id",      # str (4-byte selector hex, or "0x" for native transfer)
     "success",        # bool
     "is_x402",        # bool — interacted with known facilitator
