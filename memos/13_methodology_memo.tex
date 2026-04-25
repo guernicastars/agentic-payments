@@ -557,6 +557,90 @@ whether a control can safely run on the payment path.
         so the model compounds data advantage over time.
 \end{enumerate}
 
+\section{Generalising to Traditional Payment Rails}
+
+The current x402/Base implementation should be treated as the first rail
+adapter, not as the boundary of the product.  The invariant is not a wallet; it
+is an actor producing payment behaviour.  A production architecture should
+therefore separate rail-specific ingestion from a common event/entity graph.
+
+\subsection{Rail Adapters}
+
+Stripe is the easiest traditional-payment adapter because the Charge object
+already exposes risk outcomes, network status, decline/advice codes,
+\code{fraud_details}, card checks, payment-method fingerprints, refunds,
+disputes, and payment-method-specific details \cite{stripeCharge}.  Stripe's
+Radar score and risk level should be stored as external model signals, not as
+ground truth.
+
+Shopify is the natural ecommerce adapter.  Its order-level fraud analysis
+surfaces AVS/CVV, IP, multiple-card attempts, and low/medium/high
+recommendations; the Order Risk API allows third-party risk assessments to be
+displayed back to merchants with accept/investigate/cancel recommendations
+\cite{shopifyFraud,shopifyOrderRisk}.  This makes Shopify a practical path to
+a private app demo: ingest orders and transactions, produce an agent-aware
+order-risk record, and write the explanation into the merchant workflow.
+
+Visa and Mastercard direct integrations are not hackathon-easy because their
+risk-management products are partner/restricted surfaces.  Public Visa material
+describes Visa Advanced Authorization and Visa Risk Manager as in-flight AI
+risk scoring plus rules/case-management tooling over VisaNet-scale attributes
+\cite{visaVaa}.  Mastercard describes Decision Intelligence and Transaction
+Fraud Monitoring as real-time/pre-authorization risk scoring products with
+rules, case management, business insights, and network intelligence
+\cite{mastercardDi,mastercardTfm}.  The practical route is through an issuer,
+acquirer, PSP, or payment facilitator that can provide authorization streams
+and chargeback labels.
+
+\subsection{Canonical Entity Graph}
+
+The wallet-centric schema should generalise to:
+
+\begin{itemize}
+  \item \textbf{Payment events:} rail, time, amount, currency, status, payer,
+        payee, instrument, merchant, order, channel, external score, and raw
+        rail reference.
+  \item \textbf{Entities:} customer/account, wallet, card token/fingerprint,
+        bank account fingerprint, merchant, device/session, email/phone,
+        IP/ASN, shipping/billing address hash, and agent identity where
+        available.
+  \item \textbf{Labels:} chargeback, confirmed fraud, issuer decline, Radar
+        high/elevated/normal, Shopify high/medium/low, refund abuse, scam
+        report, AML alert, and manual-review decision.
+\end{itemize}
+
+\subsection{Feature Transfer}
+
+Most x402 features have direct traditional-payment analogues:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+x402 feature family & Traditional-payment equivalent \\
+\midrule
+Inter-arrival regularity & checkout/payment-attempt velocity and retry cadence \\
+24-hour uniformity & always-on API or checkout automation \\
+Gas tightness & repeated request/device/API-idempotency patterns \\
+Counterparty concentration & merchant, SKU, recipient, or address concentration \\
+Method concentration & card/wallet/BNPL/3DS strategy concentration \\
+Burst intensity & card testing, checkout waves, promo/refund abuse \\
+Late counterparty drift & ATO or compromised-agent shift to new merchants/SKUs \\
+Coordination & linked accounts/cards/devices/IPs in tight windows \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Traditional rails also add features that x402 lacks: AVS/CVV outcomes, 3DS/ECI
+signals, device/browser entropy, shipping/billing distance, merchant-category
+risk, issuer/network decline codes, capture delay, refund velocity,
+fulfilment status, and chargeback reason codes.
+
+The venture-level framing is therefore: \emph{behavioural risk intelligence for
+automated payment traffic across rails}.  We start with x402 because it makes
+machine payments visible, then reuse the same fingerprinting and graph-risk
+engine for Stripe merchants, Shopify stores, PSPs, acquirers, issuers, and
+digital banks.
+
 \section{Limitations}
 
 \begin{itemize}
@@ -632,6 +716,11 @@ Stripe Documentation.
 \newblock Risk evaluation: risk score and risk outcomes.
 \newblock \url{https://docs.stripe.com/radar/risk-evaluation}
 
+\bibitem{stripeCharge}
+Stripe Documentation.
+\newblock The Charge object.
+\newblock \url{https://docs.stripe.com/api/charges/object}
+
 \bibitem{stripeInsights}
 Stripe Documentation.
 \newblock Risk insights.
@@ -650,12 +739,32 @@ Stripe Documentation.
 \bibitem{shopifyFraud}
 Shopify Help Center.
 \newblock Fraud analysis.
-\newblock \url{https://help.shopify.com/en/manual/orders/fraud-analysis}
+\newblock \url{https://help.shopify.com/en/manual/fulfillment/managing-orders/protecting-orders/fraud-analysis}
+
+\bibitem{shopifyOrderRisk}
+Shopify Developer Documentation.
+\newblock Order Risk resource.
+\newblock \url{https://shopify.dev/docs/api/admin-rest/2025-07/resources/order-risk}
 
 \bibitem{shopifyProtect}
 Shopify.
 \newblock Shopify Protect.
 \newblock \url{https://www.shopify.com/protect}
+
+\bibitem{visaVaa}
+Visa.
+\newblock Visa Advanced Authorization + Visa Risk Manager: Managing fraud better, together.
+\newblock \url{https://corporate.visa.com/content/dam/VCOM/corporate/solutions/documents/visa-risk-manager-cnp-global-infographic.pdf}
+
+\bibitem{mastercardDi}
+Mastercard.
+\newblock Decision Intelligence for fraud and risk management.
+\newblock \url{https://www.mastercard.com/global/en/business/cybersecurity-fraud-prevention/risk-decisioning/decision-intelligence.html}
+
+\bibitem{mastercardTfm}
+Mastercard.
+\newblock Transaction Fraud Monitoring.
+\newblock \url{https://www.mastercard.com/global/en/business/cybersecurity-fraud-prevention/risk-decisioning/transaction-fraud-monitoring.html}
 
 \bibitem{riskifiedGuarantee}
 Riskified.
