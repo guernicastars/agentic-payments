@@ -1,6 +1,6 @@
-# Agentic Payments — Behavioural Risk Intelligence for Agent Traffic
+# Agentic Payments — Behavioural Risk Intelligence for Automated Payment Traffic
 
-Bloomsbury Tech hackathon build (April 2026). Detects compromised, colluding, and adversarial AI agents on payment rails using behavioural fingerprinting + causal interpretability — the analytic stack the existing fraud incumbents (Stripe Radar, Visa DI, Sardine) don't have because they were trained on human distributions.
+Bloomsbury Tech hackathon build (April 2026). Detects compromised, colluding, and adversarial AI agents across payment rails using behavioural fingerprinting + causal interpretability. x402/Base is the first clean demo rail; the same actor-risk engine is intended to generalise to Stripe, Shopify, Visa/Mastercard authorization streams, PSPs, acquirers, and digital banks.
 
 ## Status
 
