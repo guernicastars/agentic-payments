@@ -1,0 +1,13 @@
+{
+  "built_at": "2026-04-25T13:13:40+00:00",
+  "events": 360,
+  "trend_rows": 4,
+  "scores_rows": 25,
+  "embedding_rows": 116,
+  "headline": {
+    "median_compression": 100,
+    "volume_growth": 28000,
+    "rf_accuracy": 99.6,
+    "feature_mi_pass_rate": 97
+  }
+}

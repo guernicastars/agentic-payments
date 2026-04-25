@@ -2,6 +2,16 @@
 
 Bloomsbury Tech hackathon build (April 2026). Detects compromised, colluding, and adversarial AI agents across payment rails using behavioural fingerprinting + causal interpretability. x402/Base is the first clean demo rail; the same actor-risk engine is intended to generalise to Stripe, Shopify, Visa/Mastercard authorization streams, PSPs, acquirers, and digital banks.
 
+## Live web demo
+
+Static Next.js port of the dashboard at `web/`. One-click deploy to Vercel:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fguernicastars%2Fagentic-payments&root-directory=web&project-name=agentic-payments&repository-name=agentic-payments)
+
+Local: `cd web && npm install && npm run dev`. Data is pre-computed via
+`python scripts/export_to_web.py` (no Python at runtime; the React
+LiveTracker replays the recorded score stream at 1 tx/second).
+
 ## Status
 
 Hackathon prep day (Friday). Saturday: 10am–8pm build; 2-min pitch to Tom Blomfield (YC).
