@@ -24,6 +24,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.ingest.facilitators import ALL_FACILITATORS, facilitator_label, is_facilitator
+
 USDC_BASE = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
 
 TRANSFER_WITH_AUTHORIZATION = "0xe3ee160e"
@@ -32,13 +34,6 @@ EIP3009_SELECTORS = {TRANSFER_WITH_AUTHORIZATION, RECEIVE_WITH_AUTHORIZATION}
 
 ERC20_TRANSFER = "0xa9059cbb"
 ERC20_APPROVE = "0x095ea7b3"
-
-FACILITATORS: dict[str, str] = {
-    "0x6c4f2c7e9f9d1f1f3a5f8b2e0a6b6d7c1d2e3f40": "cdp",
-    "0x7d2a1f0b3e4c5d6e7f8091a2b3c4d5e6f7081920": "payai",
-    "0x8e3b2c1d0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b50": "thirdweb",
-    "0x9f4c3b2a1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c60": "altlayer",
-}
 
 USD_PER_ETH = 2500.0
 USDC_DECIMALS = 6
@@ -125,9 +120,9 @@ def normalize_tx(row: dict) -> dict:
     is_x402 = (
         tx_to == USDC_BASE
         and method_id in EIP3009_SELECTORS
-        and tx_from in FACILITATORS
+        and is_facilitator(tx_from)
     )
-    facilitator = FACILITATORS.get(tx_from) if is_x402 else None
+    facilitator = facilitator_label(tx_from) if is_x402 else None
 
     if is_x402:
         signer = decode_x402_signer(input_hex)

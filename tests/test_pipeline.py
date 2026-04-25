@@ -8,11 +8,11 @@ from pathlib import Path
 import pandas as pd
 
 from src.ingest.base import (
-    FACILITATORS,
     USDC_BASE,
     decode_x402_signer,
     normalize,
 )
+from src.ingest.facilitators import ALL_FACILITATORS, facilitator_label
 from src.ingest.synthetic import generate
 from src.pipeline import run_pipeline
 
@@ -85,7 +85,7 @@ def test_decode_x402_signer_handles_garbage() -> None:
 
 def test_ingest_uses_signer_not_facilitator() -> None:
     """Critical invariant: from_addr must be the EIP-3009 signer, not tx.from."""
-    facilitator_addr = next(iter(FACILITATORS))
+    facilitator_addr = next(iter(ALL_FACILITATORS))
     real_agent = "0x" + "cd" * 20
     selector = "0xe3ee160e"
     from_word = "0" * 24 + "cd" * 20
@@ -111,7 +111,7 @@ def test_ingest_uses_signer_not_facilitator() -> None:
     canonical = normalize(raw)
     assert canonical.loc[0, "is_x402"] is True or bool(canonical.loc[0, "is_x402"])
     assert canonical.loc[0, "from_addr"] == real_agent
-    assert canonical.loc[0, "facilitator"] == FACILITATORS[facilitator_addr]
+    assert canonical.loc[0, "facilitator"] == facilitator_label(facilitator_addr)
     assert canonical.loc[0, "value_usd"] == 2.5  # 2_500_000 / 10**6
 
 
